@@ -1,0 +1,12 @@
+packages:
+  "date-fns": "For human-readable relative time and date formatting"
+  "react-hook-form": "For robust form state management"
+  "@hookform/resolvers": "For Zod schema validation with forms"
+  "framer-motion": "For polished page and list animations"
+  "clsx": "For conditional class merging"
+  "tailwind-merge": "For resolving tailwind class conflicts securely"
+
+notes:
+  - Using date-fns for the live "time since submitted" counter
+  - Extracting stats client-side from the tickets list response since there is no dedicated stats endpoint
+  - Treating pendingDate as a string in format 'yyyy-MM-dd' for standard comparison
