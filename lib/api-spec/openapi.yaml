@@ -11,6 +11,8 @@ tags:
     description: Health operations
   - name: tickets
     description: Ticket management
+  - name: ai
+    description: AI-powered features
 paths:
   /healthz:
     get:
@@ -146,6 +148,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /tickets/parse-image:
+    post:
+      operationId: parseTicketImage
+      tags: [ai]
+      summary: Parse a screenshot to extract ticket fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParseImageRequest"
+      responses:
+        "200":
+          description: Extracted ticket fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParseImageResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -264,6 +291,48 @@ components:
         submittedAt:
           type: string
           format: date-time
+
+    ParseImageRequest:
+      type: object
+      properties:
+        imageBase64:
+          type: string
+          description: Base64-encoded image data (with or without data URI prefix)
+        mimeType:
+          type: string
+          description: Image MIME type (e.g. image/png, image/jpeg)
+      required:
+        - imageBase64
+
+    ParseImageResponse:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        submitter:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        confidence:
+          type: string
+          nullable: true
+          description: Brief note about extraction confidence
+      required:
+        - title
+        - description
+        - submitter
+        - state
+        - category
+        - confidence
 
     ErrorResponse:
       type: object

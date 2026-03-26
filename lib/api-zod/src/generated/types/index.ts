@@ -11,6 +11,8 @@ export * from "./createTicketRequestStatus";
 export * from "./errorResponse";
 export * from "./healthStatus";
 export * from "./listTicketsParams";
+export * from "./parseImageRequest";
+export * from "./parseImageResponse";
 export * from "./ticket";
 export * from "./ticketStatus";
 export * from "./updateTicketRequest";

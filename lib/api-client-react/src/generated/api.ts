@@ -21,6 +21,8 @@ import type {
   ErrorResponse,
   HealthStatus,
   ListTicketsParams,
+  ParseImageRequest,
+  ParseImageResponse,
   Ticket,
   UpdateTicketRequest,
 } from "./api.schemas";
@@ -544,4 +546,90 @@ export const useDeleteTicket = <
   TContext
 > => {
   return useMutation(getDeleteTicketMutationOptions(options));
+};
+
+/**
+ * @summary Parse a screenshot to extract ticket fields
+ */
+export const getParseTicketImageUrl = () => {
+  return `/api/tickets/parse-image`;
+};
+
+export const parseTicketImage = async (
+  parseImageRequest: ParseImageRequest,
+  options?: RequestInit,
+): Promise<ParseImageResponse> => {
+  return customFetch<ParseImageResponse>(getParseTicketImageUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(parseImageRequest),
+  });
+};
+
+export const getParseTicketImageMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof parseTicketImage>>,
+    TError,
+    { data: BodyType<ParseImageRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof parseTicketImage>>,
+  TError,
+  { data: BodyType<ParseImageRequest> },
+  TContext
+> => {
+  const mutationKey = ["parseTicketImage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof parseTicketImage>>,
+    { data: BodyType<ParseImageRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return parseTicketImage(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ParseTicketImageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof parseTicketImage>>
+>;
+export type ParseTicketImageMutationBody = BodyType<ParseImageRequest>;
+export type ParseTicketImageMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Parse a screenshot to extract ticket fields
+ */
+export const useParseTicketImage = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof parseTicketImage>>,
+    TError,
+    { data: BodyType<ParseImageRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof parseTicketImage>>,
+  TError,
+  { data: BodyType<ParseImageRequest> },
+  TContext
+> => {
+  return useMutation(getParseTicketImageMutationOptions(options));
 };

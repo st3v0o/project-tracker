@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronsUpDown, Check } from "lucide-react";
+import { CalendarIcon, ChevronsUpDown, Check, ImageIcon, Loader2, X, Sparkles } from "lucide-react";
 import { useTicketsManager } from "@/hooks/use-tickets-manager";
 import { US_STATES, CATEGORIES } from "@/lib/constants";
 import type { Ticket } from "@workspace/api-client-react";
@@ -45,6 +45,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Badge } from "@/components/ui/badge";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -71,11 +72,56 @@ interface TicketFormDialogProps {
   onOpenChange?: (open: boolean) => void;
 }
 
+interface ParsedFields {
+  title?: string | null;
+  description?: string | null;
+  submitter?: string | null;
+  state?: string | null;
+  category?: string | null;
+  confidence?: string | null;
+}
+
+function fileToBase64(file: File): Promise<{ base64: string; mimeType: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve({ base64: result, mimeType: file.type || "image/png" });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+const BASE_URL = import.meta.env.BASE_URL ?? "/";
+
+async function parseImage(base64: string, mimeType: string): Promise<ParsedFields> {
+  const url = `${BASE_URL}api/tickets/parse-image`.replace("//", "/");
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageBase64: base64, mimeType }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(err.error ?? "Failed to parse image");
+  }
+  return res.json();
+}
+
 export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpenChange }: TicketFormDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [statePopoverOpen, setStatePopoverOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
+
+  const [isDragging, setIsDragging] = useState(false);
+  const [isParsingImage, setIsParsingImage] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [confidence, setConfidence] = useState<string | null>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { createTicket, updateTicket, isCreating, isUpdating } = useTicketsManager();
   const isEditMode = !!ticket;
@@ -117,6 +163,9 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
         status: "todo",
         pendingDate: null,
       });
+      setPreviewUrl(null);
+      setConfidence(null);
+      setParseError(null);
     }
   }, [open, ticket, form]);
 
@@ -128,7 +177,69 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
     }
     if (!newOpen) {
       form.reset();
+      setPreviewUrl(null);
+      setConfidence(null);
+      setParseError(null);
     }
+  };
+
+  const processImageFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setParseError("Please provide an image file.");
+      return;
+    }
+    setIsParsingImage(true);
+    setParseError(null);
+    setConfidence(null);
+
+    try {
+      const { base64, mimeType } = await fileToBase64(file);
+      setPreviewUrl(base64);
+      const fields = await parseImage(base64, mimeType);
+
+      if (fields.title) form.setValue("title", fields.title, { shouldValidate: true });
+      if (fields.description) form.setValue("description", fields.description, { shouldValidate: true });
+      if (fields.submitter) form.setValue("submitter", fields.submitter, { shouldValidate: true });
+      if (fields.state) {
+        const matchedState = US_STATES.find(
+          (s) => s.toLowerCase() === fields.state!.toLowerCase()
+        );
+        if (matchedState) form.setValue("state", matchedState, { shouldValidate: true });
+      }
+      if (fields.category) {
+        const matchedCat = CATEGORIES.find(
+          (c) => c.toLowerCase() === fields.category!.toLowerCase()
+        );
+        if (matchedCat) form.setValue("category", matchedCat, { shouldValidate: true });
+      }
+      if (fields.confidence) setConfidence(fields.confidence);
+    } catch (err: any) {
+      setParseError(err.message ?? "Failed to analyze image.");
+    } finally {
+      setIsParsingImage(false);
+    }
+  }, [form]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) processImageFile(file);
+  }, [processImageFile]);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItem = items.find((item) => item.type.startsWith("image/"));
+    if (imageItem) {
+      const file = imageItem.getAsFile();
+      if (file) processImageFile(file);
+    }
+  }, [processImageFile]);
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processImageFile(file);
+    e.target.value = "";
   };
 
   const onSubmit = async (data: FormValues) => {
@@ -154,7 +265,6 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
           }
         });
       } else {
-        // Don't send submittedAt — server defaults to now()
         await createTicket({
           data: {
             title: data.title,
@@ -175,7 +285,7 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="sm:max-w-[600px] overflow-y-auto max-h-[90vh]">
+      <DialogContent className="sm:max-w-[620px] overflow-y-auto max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-display">{isEditMode ? "Edit Ticket" : "Create New Ticket"}</DialogTitle>
           <DialogDescription>
@@ -184,7 +294,102 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4" onPaste={handlePaste}>
+
+            {/* AI Image Drop Zone — only shown for new tickets */}
+            {!isEditMode && (
+              <div
+                ref={dropZoneRef}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={cn(
+                  "relative rounded-xl border-2 border-dashed transition-all duration-200 cursor-pointer",
+                  isDragging
+                    ? "border-primary bg-primary/10 scale-[1.01]"
+                    : "border-border/60 bg-muted/30 hover:border-primary/60 hover:bg-muted/50"
+                )}
+                onClick={() => !isParsingImage && fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileInputChange}
+                />
+
+                {previewUrl ? (
+                  <div className="p-3 flex items-start gap-3">
+                    <img
+                      src={previewUrl}
+                      alt="Uploaded screenshot"
+                      className="h-20 w-20 object-cover rounded-lg border border-border/40 flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
+                        <span className="text-sm font-medium text-foreground">
+                          {isParsingImage ? "Analyzing screenshot..." : "Fields auto-filled from screenshot"}
+                        </span>
+                        {!isParsingImage && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewUrl(null);
+                              setConfidence(null);
+                              setParseError(null);
+                            }}
+                            className="ml-auto text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                      {isParsingImage && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>Reading image with AI...</span>
+                        </div>
+                      )}
+                      {confidence && !isParsingImage && (
+                        <Badge variant="secondary" className="text-xs">
+                          Confidence: {confidence}
+                        </Badge>
+                      )}
+                      {parseError && !isParsingImage && (
+                        <p className="text-xs text-destructive mt-1">{parseError}</p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-2 py-5 px-4 text-center">
+                    {isParsingImage ? (
+                      <>
+                        <Loader2 className="h-7 w-7 text-primary animate-spin" />
+                        <p className="text-sm text-muted-foreground">Analyzing your screenshot with AI...</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <ImageIcon className="h-6 w-6 text-muted-foreground/60" />
+                          <Sparkles className="h-4 w-4 text-primary/60" />
+                        </div>
+                        <p className="text-sm font-medium text-foreground">Drop or paste a screenshot to auto-fill</p>
+                        <p className="text-xs text-muted-foreground">
+                          Paste an image (Ctrl+V) · Drag &amp; drop · or click to browse
+                        </p>
+                        {parseError && (
+                          <p className="text-xs text-destructive">{parseError}</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -384,7 +589,7 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
               <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" disabled={isPending || isParsingImage}>
                 {isPending ? "Saving..." : isEditMode ? "Save Changes" : "Create Ticket"}
               </Button>
             </DialogFooter>

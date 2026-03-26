@@ -82,6 +82,23 @@ export interface UpdateTicketRequest {
   submittedAt?: string;
 }
 
+export interface ParseImageRequest {
+  /** Base64-encoded image data (with or without data URI prefix) */
+  imageBase64: string;
+  /** Image MIME type (e.g. image/png, image/jpeg) */
+  mimeType?: string;
+}
+
+export interface ParseImageResponse {
+  title: string | null;
+  description: string | null;
+  submitter: string | null;
+  state: string | null;
+  category: string | null;
+  /** Brief note about extraction confidence */
+  confidence: string | null;
+}
+
 export interface ErrorResponse {
   error: string;
 }

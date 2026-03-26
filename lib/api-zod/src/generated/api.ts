@@ -147,3 +147,28 @@ export const UpdateTicketResponse = zod.object({
 export const DeleteTicketParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary Parse a screenshot to extract ticket fields
+ */
+export const ParseTicketImageBody = zod.object({
+  imageBase64: zod
+    .string()
+    .describe("Base64-encoded image data (with or without data URI prefix)"),
+  mimeType: zod
+    .string()
+    .optional()
+    .describe("Image MIME type (e.g. image\/png, image\/jpeg)"),
+});
+
+export const ParseTicketImageResponse = zod.object({
+  title: zod.string().nullable(),
+  description: zod.string().nullable(),
+  submitter: zod.string().nullable(),
+  state: zod.string().nullable(),
+  category: zod.string().nullable(),
+  confidence: zod
+    .string()
+    .nullable()
+    .describe("Brief note about extraction confidence"),
+});
