@@ -78,7 +78,9 @@ export interface UpdateTicketRequest {
   category?: string;
   status?: UpdateTicketRequestStatus;
   pendingDate?: string | null;
+  /** ISO 8601 date-time string */
   completedAt?: string | null;
+  /** ISO 8601 date-time string */
   submittedAt?: string;
 }
 

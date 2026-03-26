@@ -14,7 +14,9 @@ export interface UpdateTicketRequest {
   submitter?: string;
   category?: string;
   status?: UpdateTicketRequestStatus;
-  pendingDate?: Date | null;
-  completedAt?: Date | null;
-  submittedAt?: Date;
+  pendingDate?: string | null;
+  /** ISO 8601 date-time string */
+  completedAt?: string | null;
+  /** ISO 8601 date-time string */
+  submittedAt?: string;
 }

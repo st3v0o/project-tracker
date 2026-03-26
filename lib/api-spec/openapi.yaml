@@ -282,15 +282,14 @@ components:
           enum: [todo, pending, complete]
         pendingDate:
           type: string
-          format: date
           nullable: true
         completedAt:
           type: string
-          format: date-time
           nullable: true
+          description: ISO 8601 date-time string
         submittedAt:
           type: string
-          format: date-time
+          description: ISO 8601 date-time string
 
     ParseImageRequest:
       type: object

@@ -112,9 +112,9 @@ export const UpdateTicketBody = zod.object({
   submitter: zod.string().optional(),
   category: zod.string().optional(),
   status: zod.enum(["todo", "pending", "complete"]).optional(),
-  pendingDate: zod.date().nullish(),
-  completedAt: zod.date().nullish(),
-  submittedAt: zod.date().optional(),
+  pendingDate: zod.string().nullish(),
+  completedAt: zod.string().nullish().describe("ISO 8601 date-time string"),
+  submittedAt: zod.string().optional().describe("ISO 8601 date-time string"),
 });
 
 export const UpdateTicketResponse = zod.object({
