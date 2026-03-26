@@ -227,14 +227,25 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
     if (file) processImageFile(file);
   }, [processImageFile]);
 
-  const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    const items = Array.from(e.clipboardData.items);
-    const imageItem = items.find((item) => item.type.startsWith("image/"));
-    if (imageItem) {
+  // Document-level paste listener — active whenever the dialog is open
+  // so Ctrl+V works regardless of which element has focus.
+  // Only intercepts paste events that contain an image; text pastes into
+  // inputs are left alone.
+  useEffect(() => {
+    if (!open || isEditMode) return;
+
+    const handleDocumentPaste = (e: ClipboardEvent) => {
+      const items = Array.from(e.clipboardData?.items ?? []);
+      const imageItem = items.find((item) => item.type.startsWith("image/"));
+      if (!imageItem) return;
+      e.preventDefault();
       const file = imageItem.getAsFile();
       if (file) processImageFile(file);
-    }
-  }, [processImageFile]);
+    };
+
+    document.addEventListener("paste", handleDocumentPaste);
+    return () => document.removeEventListener("paste", handleDocumentPaste);
+  }, [open, isEditMode, processImageFile]);
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -294,7 +305,7 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4" onPaste={handlePaste}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
 
             {/* AI Image Drop Zone — only shown for new tickets */}
             {!isEditMode && (
