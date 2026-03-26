@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { Plus, Search, SlidersHorizontal, X, ArrowUpDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTicketsManager } from "@/hooks/use-tickets-manager";
 import { DashboardStats } from "@/components/dashboard-stats";
@@ -27,10 +27,24 @@ export default function Dashboard() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<string>("newest");
 
-  // Apply filters locally (could also be done via API params, but local is instant for small datasets)
+  const SORT_OPTIONS = [
+    { value: "newest", label: "Newest First" },
+    { value: "oldest", label: "Oldest First" },
+    { value: "title_asc", label: "Title (A–Z)" },
+    { value: "title_desc", label: "Title (Z–A)" },
+    { value: "submitter_asc", label: "Submitter (A–Z)" },
+    { value: "state_asc", label: "State (A–Z)" },
+    { value: "status", label: "Status" },
+    { value: "category_asc", label: "Category (A–Z)" },
+  ];
+
+  const STATUS_ORDER: Record<string, number> = { todo: 0, pending: 1, complete: 2 };
+
+  // Apply filters + sort locally
   const filteredTickets = useMemo(() => {
-    return tickets.filter((ticket) => {
+    const filtered = tickets.filter((ticket) => {
       const matchesSearch = 
         search === "" || 
         ticket.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -42,7 +56,30 @@ export default function Dashboard() {
 
       return matchesSearch && matchesState && matchesCat && matchesStatus;
     });
-  }, [tickets, search, stateFilter, categoryFilter, statusFilter]);
+
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+        case "oldest":
+          return new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime();
+        case "title_asc":
+          return a.title.localeCompare(b.title);
+        case "title_desc":
+          return b.title.localeCompare(a.title);
+        case "submitter_asc":
+          return a.submitter.localeCompare(b.submitter);
+        case "state_asc":
+          return a.state.localeCompare(b.state);
+        case "status":
+          return (STATUS_ORDER[a.status] ?? 0) - (STATUS_ORDER[b.status] ?? 0);
+        case "category_asc":
+          return a.category.localeCompare(b.category);
+        default:
+          return 0;
+      }
+    });
+  }, [tickets, search, stateFilter, categoryFilter, statusFilter, sortBy]);
 
   const activeFiltersCount = 
     (stateFilter !== "all" ? 1 : 0) + 
@@ -104,6 +141,20 @@ export default function Dashboard() {
                 />
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto">
+                {/* Sort By */}
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="bg-background/50 rounded-xl w-full sm:w-44 gap-1.5">
+                    <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SORT_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Filters toggle */}
                 <Button 
                   variant="outline" 
                   className={`rounded-xl w-full sm:w-auto ${activeFiltersCount > 0 ? 'border-primary/50 text-primary bg-primary/5' : ''}`}
