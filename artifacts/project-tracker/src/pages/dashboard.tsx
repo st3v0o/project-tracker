@@ -99,15 +99,16 @@ export default function Dashboard() {
     if (categoryFilter !== "all") params.set("category", categoryFilter);
     if (statusFilter !== "all") params.set("status", statusFilter);
     if (search.trim()) params.set("search", search.trim());
+    params.set("sortBy", sortBy);
     const BASE_URL = import.meta.env.BASE_URL ?? "/";
-    const url = `${BASE_URL}api/tickets/export`.replace("//", "/") + (params.size > 0 ? `?${params}` : "");
+    const url = `${BASE_URL}api/tickets/export`.replace("//", "/") + `?${params}`;
     const a = document.createElement("a");
     a.href = url;
     a.download = "";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  }, [stateFilter, categoryFilter, statusFilter, search]);
+  }, [stateFilter, categoryFilter, statusFilter, search, sortBy]);
 
   return (
     <div className="min-h-screen bg-background pb-12">

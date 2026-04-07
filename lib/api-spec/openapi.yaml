@@ -175,6 +175,11 @@ paths:
           schema:
             type: string
           description: Free-text search on title or submitter
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+          description: "Sort order matching the dashboard: newest|oldest|az|za|state-az|state-za|time-most|time-least"
       responses:
         "200":
           description: Excel file download

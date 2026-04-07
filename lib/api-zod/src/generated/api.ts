@@ -160,6 +160,12 @@ export const ExportTicketsQueryParams = zod.object({
     .string()
     .optional()
     .describe("Free-text search on title or submitter"),
+  sortBy: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Sort order matching the dashboard: newest|oldest|az|za|state-az|state-za|time-most|time-least",
+    ),
 });
 
 /**

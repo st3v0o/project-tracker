@@ -10,7 +10,7 @@ import {
   UpdateTicketParams,
   DeleteTicketParams,
 } from "@workspace/api-zod";
-import { eq, and, or, ilike, SQL } from "drizzle-orm";
+import { eq, and, or, ilike, SQL, asc, desc } from "drizzle-orm";
 import { format } from "date-fns";
 
 const router: IRouter = Router();
@@ -60,7 +60,7 @@ router.get("/tickets/export", async (req, res) => {
       return;
     }
 
-    const { state, submitter, status, category, search: rawSearch } = parsed.data;
+    const { state, submitter, status, category, search: rawSearch, sortBy } = parsed.data;
     const search = rawSearch?.trim() ?? "";
 
     const conditions: SQL[] = [];
@@ -77,10 +77,27 @@ router.get("/tickets/export", async (req, res) => {
       );
     }
 
-    const tickets =
+    // Match dashboard sort order
+    const orderExpr = (() => {
+      switch (sortBy) {
+        case "oldest":     return asc(ticketsTable.submittedAt);
+        case "az":         return asc(ticketsTable.title);
+        case "za":         return desc(ticketsTable.title);
+        case "state-az":   return asc(ticketsTable.state);
+        case "state-za":   return desc(ticketsTable.state);
+        case "time-most":  return asc(ticketsTable.submittedAt);
+        case "time-least": return desc(ticketsTable.submittedAt);
+        case "newest":
+        default:           return desc(ticketsTable.submittedAt);
+      }
+    })();
+
+    const baseQuery = db.select().from(ticketsTable);
+    const tickets = await (
       conditions.length > 0
-        ? await db.select().from(ticketsTable).where(and(...conditions))
-        : await db.select().from(ticketsTable);
+        ? baseQuery.where(and(...conditions)).orderBy(orderExpr)
+        : baseQuery.orderBy(orderExpr)
+    );
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "Project Tracker";

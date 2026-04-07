@@ -121,4 +121,8 @@ export type ExportTicketsParams = {
    * Free-text search on title or submitter
    */
   search?: string;
+  /**
+   * Sort order matching the dashboard: newest|oldest|az|za|state-az|state-za|time-most|time-least
+   */
+  sortBy?: string;
 };
