@@ -100,8 +100,8 @@ export default function Dashboard() {
     if (statusFilter !== "all") params.set("status", statusFilter);
     if (search.trim()) params.set("search", search.trim());
     params.set("sortBy", sortBy);
-    const BASE_URL = import.meta.env.BASE_URL ?? "/";
-    const url = `${BASE_URL}api/tickets/export`.replace("//", "/") + `?${params}`;
+    const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+    const url = `${base}/api/tickets/export?${params}`;
     const a = document.createElement("a");
     a.href = url;
     a.download = "";
