@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import ExcelJS from "exceljs";
 import { db, ticketsTable } from "@workspace/db";
 import {
   ListTicketsQueryParams,
@@ -9,6 +10,7 @@ import {
   DeleteTicketParams,
 } from "@workspace/api-zod";
 import { eq, and, SQL } from "drizzle-orm";
+import { format } from "date-fns";
 
 const router: IRouter = Router();
 
@@ -45,6 +47,101 @@ router.get("/tickets", async (req, res) => {
     res.json(result);
   } catch (err) {
     req.log.error({ err }, "Failed to list tickets");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/tickets/export", async (req, res) => {
+  try {
+    const parsed = ListTicketsQueryParams.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid query parameters" });
+      return;
+    }
+
+    const { state, submitter, status, category } = parsed.data;
+    const conditions: SQL[] = [];
+    if (state) conditions.push(eq(ticketsTable.state, state));
+    if (submitter) conditions.push(eq(ticketsTable.submitter, submitter));
+    if (status) conditions.push(eq(ticketsTable.status, status));
+    if (category) conditions.push(eq(ticketsTable.category, category));
+
+    const tickets =
+      conditions.length > 0
+        ? await db.select().from(ticketsTable).where(and(...conditions))
+        : await db.select().from(ticketsTable);
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "Project Tracker";
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet("Tickets");
+
+    sheet.columns = [
+      { header: "ID", key: "id", width: 8 },
+      { header: "Title", key: "title", width: 40 },
+      { header: "Submitter", key: "submitter", width: 20 },
+      { header: "State", key: "state", width: 20 },
+      { header: "Category", key: "category", width: 20 },
+      { header: "Status", key: "status", width: 12 },
+      { header: "Description", key: "description", width: 50 },
+      { header: "Submitted At", key: "submittedAt", width: 22 },
+      { header: "Pending Date", key: "pendingDate", width: 16 },
+      { header: "Completed At", key: "completedAt", width: 22 },
+      { header: "Time Since (days)", key: "timeSinceDays", width: 20 },
+      { header: "Created At", key: "createdAt", width: 22 },
+    ];
+
+    // Style header row
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F46E5" } };
+    headerRow.alignment = { vertical: "middle", horizontal: "center" };
+    headerRow.height = 20;
+
+    const now = new Date();
+    for (const t of tickets) {
+      const submittedAt = new Date(t.submittedAt);
+      const daysSince = Math.floor((now.getTime() - submittedAt.getTime()) / (1000 * 60 * 60 * 24));
+
+      sheet.addRow({
+        id: t.id,
+        title: t.title,
+        submitter: t.submitter,
+        state: t.state,
+        category: t.category,
+        status: t.status,
+        description: t.description,
+        submittedAt: format(submittedAt, "MM/dd/yyyy HH:mm"),
+        pendingDate: t.pendingDate ?? "",
+        completedAt: t.completedAt ? format(new Date(t.completedAt), "MM/dd/yyyy HH:mm") : "",
+        timeSinceDays: daysSince,
+        createdAt: format(new Date(t.createdAt), "MM/dd/yyyy HH:mm"),
+      });
+    }
+
+    // Zebra stripe rows
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      if (rowNumber % 2 === 0) {
+        row.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5F3FF" } };
+      }
+      row.alignment = { vertical: "middle", wrapText: false };
+    });
+
+    // Freeze header row
+    sheet.views = [{ state: "frozen", ySplit: 1 }];
+
+    const dateStr = format(now, "yyyy-MM-dd");
+    const filename = `tickets-export-${dateStr}.xlsx`;
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    req.log.error({ err }, "Failed to export tickets");
     res.status(500).json({ error: "Internal server error" });
   }
 });

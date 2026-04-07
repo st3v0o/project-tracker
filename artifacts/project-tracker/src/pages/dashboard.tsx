@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Plus, Search, SlidersHorizontal, X, ArrowUpDown } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { Plus, Search, SlidersHorizontal, X, ArrowUpDown, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTicketsManager } from "@/hooks/use-tickets-manager";
 import { DashboardStats } from "@/components/dashboard-stats";
@@ -93,6 +93,21 @@ export default function Dashboard() {
     setSearch("");
   };
 
+  const handleExport = useCallback(() => {
+    const params = new URLSearchParams();
+    if (stateFilter !== "all") params.set("state", stateFilter);
+    if (categoryFilter !== "all") params.set("category", categoryFilter);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    const BASE_URL = import.meta.env.BASE_URL ?? "/";
+    const url = `${BASE_URL}api/tickets/export`.replace("//", "/") + (params.size > 0 ? `?${params}` : "");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }, [stateFilter, categoryFilter, statusFilter]);
+
   return (
     <div className="min-h-screen bg-background pb-12">
       {/* Header */}
@@ -104,7 +119,15 @@ export default function Dashboard() {
             </div>
             <h1 className="text-xl font-display font-bold text-foreground">Project Tracker</h1>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="rounded-full px-4 hidden sm:flex"
+              onClick={handleExport}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
             <TicketFormDialog trigger={
               <Button className="shadow-sm shadow-primary/20 hover:shadow-md transition-all rounded-full px-5">
                 <Plus className="w-4 h-4 mr-2" />

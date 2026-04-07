@@ -15,7 +15,9 @@
     "@workspace/integrations-openai-ai-server": "workspace:*",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
+    "date-fns": "^3.6.0",
     "drizzle-orm": "catalog:",
+    "exceljs": "^4.4.0",
     "express": "^5",
     "pino": "^9",
     "pino-http": "^10"
