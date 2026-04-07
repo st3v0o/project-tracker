@@ -160,11 +160,20 @@ export const ExportTicketsQueryParams = zod.object({
     .string()
     .optional()
     .describe("Free-text search on title or submitter"),
-  sortBy: zod.coerce
-    .string()
+  sortBy: zod
+    .enum([
+      "newest",
+      "oldest",
+      "title_asc",
+      "title_desc",
+      "submitter_asc",
+      "state_asc",
+      "category_asc",
+      "status",
+    ])
     .optional()
     .describe(
-      "Sort order matching the dashboard: newest|oldest|az|za|state-az|state-za|time-most|time-least",
+      "Sort order matching the dashboard SORT_OPTIONS. Defaults to newest.",
     ),
 });
 

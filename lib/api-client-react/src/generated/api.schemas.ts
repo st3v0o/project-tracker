@@ -122,7 +122,21 @@ export type ExportTicketsParams = {
    */
   search?: string;
   /**
-   * Sort order matching the dashboard: newest|oldest|az|za|state-az|state-za|time-most|time-least
+   * Sort order matching the dashboard SORT_OPTIONS. Defaults to newest.
    */
-  sortBy?: string;
+  sortBy?: ExportTicketsSortBy;
 };
+
+export type ExportTicketsSortBy =
+  (typeof ExportTicketsSortBy)[keyof typeof ExportTicketsSortBy];
+
+export const ExportTicketsSortBy = {
+  newest: "newest",
+  oldest: "oldest",
+  title_asc: "title_asc",
+  title_desc: "title_desc",
+  submitter_asc: "submitter_asc",
+  state_asc: "state_asc",
+  category_asc: "category_asc",
+  status: "status",
+} as const;

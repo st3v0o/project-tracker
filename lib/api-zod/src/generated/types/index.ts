@@ -10,6 +10,7 @@ export * from "./createTicketRequest";
 export * from "./createTicketRequestStatus";
 export * from "./errorResponse";
 export * from "./exportTicketsParams";
+export * from "./exportTicketsSortBy";
 export * from "./healthStatus";
 export * from "./listTicketsParams";
 export * from "./parseImageRequest";

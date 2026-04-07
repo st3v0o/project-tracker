@@ -179,7 +179,16 @@ paths:
           in: query
           schema:
             type: string
-          description: "Sort order matching the dashboard: newest|oldest|az|za|state-az|state-za|time-most|time-least"
+            enum:
+              - newest
+              - oldest
+              - title_asc
+              - title_desc
+              - submitter_asc
+              - state_asc
+              - category_asc
+              - status
+          description: "Sort order matching the dashboard SORT_OPTIONS. Defaults to newest."
       responses:
         "200":
           description: Excel file download

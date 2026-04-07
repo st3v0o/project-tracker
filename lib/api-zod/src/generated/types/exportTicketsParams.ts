@@ -5,6 +5,7 @@
  * Project Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { ExportTicketsSortBy } from "./exportTicketsSortBy";
 
 export type ExportTicketsParams = {
   state?: string;
@@ -16,7 +17,7 @@ export type ExportTicketsParams = {
    */
   search?: string;
   /**
-   * Sort order matching the dashboard: newest|oldest|az|za|state-az|state-za|time-most|time-least
+   * Sort order matching the dashboard SORT_OPTIONS. Defaults to newest.
    */
-  sortBy?: string;
+  sortBy?: ExportTicketsSortBy;
 };
