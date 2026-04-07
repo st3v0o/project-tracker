@@ -193,7 +193,7 @@ export default function Dashboard() {
                 {/* Export button — always visible, exports what is currently filtered/visible */}
                 <Button variant="outline" className="rounded-xl w-full sm:w-auto" onClick={handleExport}>
                   <Download className="w-4 h-4 mr-2" />
-                  Export
+                  Export to Excel
                 </Button>
               </div>
             </div>
