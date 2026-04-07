@@ -10,7 +10,7 @@ import {
   UpdateTicketParams,
   DeleteTicketParams,
 } from "@workspace/api-zod";
-import { eq, and, or, ilike, SQL, asc, desc } from "drizzle-orm";
+import { eq, and, or, ilike, SQL, asc, desc, sql } from "drizzle-orm";
 import { format } from "date-fns";
 
 const router: IRouter = Router();
@@ -77,18 +77,20 @@ router.get("/tickets/export", async (req, res) => {
       );
     }
 
-    // Match dashboard sort order
+    // Match dashboard sort order exactly (values must match SORT_OPTIONS in dashboard.tsx)
     const orderExpr = (() => {
       switch (sortBy) {
-        case "oldest":     return asc(ticketsTable.submittedAt);
-        case "az":         return asc(ticketsTable.title);
-        case "za":         return desc(ticketsTable.title);
-        case "state-az":   return asc(ticketsTable.state);
-        case "state-za":   return desc(ticketsTable.state);
-        case "time-most":  return asc(ticketsTable.submittedAt);
-        case "time-least": return desc(ticketsTable.submittedAt);
+        case "oldest":        return asc(ticketsTable.submittedAt);
+        case "title_asc":     return asc(ticketsTable.title);
+        case "title_desc":    return desc(ticketsTable.title);
+        case "submitter_asc": return asc(ticketsTable.submitter);
+        case "state_asc":     return asc(ticketsTable.state);
+        case "category_asc":  return asc(ticketsTable.category);
+        case "status":
+          // todo → pending → complete
+          return sql`CASE status WHEN 'todo' THEN 0 WHEN 'pending' THEN 1 WHEN 'complete' THEN 2 ELSE 3 END ASC`;
         case "newest":
-        default:           return desc(ticketsTable.submittedAt);
+        default:              return desc(ticketsTable.submittedAt);
       }
     })();
 
