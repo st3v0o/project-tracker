@@ -23,7 +23,10 @@ export const ListTicketsQueryParams = zod.object({
   submitter: zod.coerce.string().optional(),
   status: zod.coerce.string().optional(),
   category: zod.coerce.string().optional(),
+  priority: zod.enum(["low", "medium", "high", "critical"]).optional(),
 });
+
+export const listTicketsResponsePriorityDefault = `medium`;
 
 export const ListTicketsResponseItem = zod.object({
   id: zod.number(),
@@ -39,6 +42,10 @@ export const ListTicketsResponseItem = zod.object({
   status: zod
     .enum(["todo", "pending", "complete"])
     .describe("todo = for today, pending = carried over, complete = done"),
+  priority: zod
+    .enum(["low", "medium", "high", "critical"])
+    .default(listTicketsResponsePriorityDefault)
+    .describe("Priority level of the ticket"),
   pendingDate: zod
     .date()
     .nullish()
@@ -54,6 +61,7 @@ export const ListTicketsResponse = zod.array(ListTicketsResponseItem);
  * @summary Create a new ticket
  */
 export const createTicketBodyStatusDefault = `todo`;
+export const createTicketBodyPriorityDefault = `medium`;
 
 export const CreateTicketBody = zod.object({
   title: zod.string(),
@@ -64,6 +72,9 @@ export const CreateTicketBody = zod.object({
   status: zod
     .enum(["todo", "pending", "complete"])
     .default(createTicketBodyStatusDefault),
+  priority: zod
+    .enum(["low", "medium", "high", "critical"])
+    .default(createTicketBodyPriorityDefault),
   submittedAt: zod.date().optional(),
 });
 
@@ -73,6 +84,8 @@ export const CreateTicketBody = zod.object({
 export const GetTicketParams = zod.object({
   id: zod.coerce.number(),
 });
+
+export const getTicketResponsePriorityDefault = `medium`;
 
 export const GetTicketResponse = zod.object({
   id: zod.number(),
@@ -88,6 +101,10 @@ export const GetTicketResponse = zod.object({
   status: zod
     .enum(["todo", "pending", "complete"])
     .describe("todo = for today, pending = carried over, complete = done"),
+  priority: zod
+    .enum(["low", "medium", "high", "critical"])
+    .default(getTicketResponsePriorityDefault)
+    .describe("Priority level of the ticket"),
   pendingDate: zod
     .date()
     .nullish()
@@ -112,10 +129,13 @@ export const UpdateTicketBody = zod.object({
   submitter: zod.string().optional(),
   category: zod.string().optional(),
   status: zod.enum(["todo", "pending", "complete"]).optional(),
+  priority: zod.enum(["low", "medium", "high", "critical"]).optional(),
   pendingDate: zod.string().nullish(),
   completedAt: zod.string().nullish().describe("ISO 8601 date-time string"),
   submittedAt: zod.string().optional().describe("ISO 8601 date-time string"),
 });
+
+export const updateTicketResponsePriorityDefault = `medium`;
 
 export const UpdateTicketResponse = zod.object({
   id: zod.number(),
@@ -131,6 +151,10 @@ export const UpdateTicketResponse = zod.object({
   status: zod
     .enum(["todo", "pending", "complete"])
     .describe("todo = for today, pending = carried over, complete = done"),
+  priority: zod
+    .enum(["low", "medium", "high", "critical"])
+    .default(updateTicketResponsePriorityDefault)
+    .describe("Priority level of the ticket"),
   pendingDate: zod
     .date()
     .nullish()
@@ -156,6 +180,7 @@ export const ExportTicketsQueryParams = zod.object({
   submitter: zod.coerce.string().optional(),
   status: zod.coerce.string().optional(),
   category: zod.coerce.string().optional(),
+  priority: zod.enum(["low", "medium", "high", "critical"]).optional(),
   search: zod.coerce
     .string()
     .optional()
@@ -170,6 +195,8 @@ export const ExportTicketsQueryParams = zod.object({
       "state_asc",
       "category_asc",
       "status",
+      "priority_high",
+      "priority_low",
     ])
     .optional()
     .describe(

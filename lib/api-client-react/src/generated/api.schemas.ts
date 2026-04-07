@@ -20,6 +20,19 @@ export const TicketStatus = {
   complete: "complete",
 } as const;
 
+/**
+ * Priority level of the ticket
+ */
+export type TicketPriority =
+  (typeof TicketPriority)[keyof typeof TicketPriority];
+
+export const TicketPriority = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  critical: "critical",
+} as const;
+
 export interface Ticket {
   id: number;
   title: string;
@@ -32,6 +45,8 @@ export interface Ticket {
   category: string;
   /** todo = for today, pending = carried over, complete = done */
   status: TicketStatus;
+  /** Priority level of the ticket */
+  priority: TicketPriority;
   /** The date this ticket was marked pending for */
   pendingDate?: string | null;
   /** When the ticket was completed */
@@ -51,6 +66,16 @@ export const CreateTicketRequestStatus = {
   complete: "complete",
 } as const;
 
+export type CreateTicketRequestPriority =
+  (typeof CreateTicketRequestPriority)[keyof typeof CreateTicketRequestPriority];
+
+export const CreateTicketRequestPriority = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  critical: "critical",
+} as const;
+
 export interface CreateTicketRequest {
   title: string;
   description: string;
@@ -58,6 +83,7 @@ export interface CreateTicketRequest {
   submitter: string;
   category: string;
   status?: CreateTicketRequestStatus;
+  priority?: CreateTicketRequestPriority;
   submittedAt?: string;
 }
 
@@ -70,6 +96,16 @@ export const UpdateTicketRequestStatus = {
   complete: "complete",
 } as const;
 
+export type UpdateTicketRequestPriority =
+  (typeof UpdateTicketRequestPriority)[keyof typeof UpdateTicketRequestPriority];
+
+export const UpdateTicketRequestPriority = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  critical: "critical",
+} as const;
+
 export interface UpdateTicketRequest {
   title?: string;
   description?: string;
@@ -77,6 +113,7 @@ export interface UpdateTicketRequest {
   submitter?: string;
   category?: string;
   status?: UpdateTicketRequestStatus;
+  priority?: UpdateTicketRequestPriority;
   pendingDate?: string | null;
   /** ISO 8601 date-time string */
   completedAt?: string | null;
@@ -110,13 +147,25 @@ export type ListTicketsParams = {
   submitter?: string;
   status?: string;
   category?: string;
+  priority?: ListTicketsPriority;
 };
+
+export type ListTicketsPriority =
+  (typeof ListTicketsPriority)[keyof typeof ListTicketsPriority];
+
+export const ListTicketsPriority = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  critical: "critical",
+} as const;
 
 export type ExportTicketsParams = {
   state?: string;
   submitter?: string;
   status?: string;
   category?: string;
+  priority?: ExportTicketsPriority;
   /**
    * Free-text search on title or submitter
    */
@@ -126,6 +175,16 @@ export type ExportTicketsParams = {
    */
   sortBy?: ExportTicketsSortBy;
 };
+
+export type ExportTicketsPriority =
+  (typeof ExportTicketsPriority)[keyof typeof ExportTicketsPriority];
+
+export const ExportTicketsPriority = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  critical: "critical",
+} as const;
 
 export type ExportTicketsSortBy =
   (typeof ExportTicketsSortBy)[keyof typeof ExportTicketsSortBy];
@@ -139,4 +198,6 @@ export const ExportTicketsSortBy = {
   state_asc: "state_asc",
   category_asc: "category_asc",
   status: "status",
+  priority_high: "priority_high",
+  priority_low: "priority_low",
 } as const;

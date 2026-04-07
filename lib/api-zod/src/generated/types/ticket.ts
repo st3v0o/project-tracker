@@ -5,6 +5,7 @@
  * Project Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { TicketPriority } from "./ticketPriority";
 import type { TicketStatus } from "./ticketStatus";
 
 export interface Ticket {
@@ -19,6 +20,8 @@ export interface Ticket {
   category: string;
   /** todo = for today, pending = carried over, complete = done */
   status: TicketStatus;
+  /** Priority level of the ticket */
+  priority: TicketPriority;
   /** The date this ticket was marked pending for */
   pendingDate?: Date | null;
   /** When the ticket was completed */

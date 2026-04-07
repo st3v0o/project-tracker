@@ -4,6 +4,7 @@ import { MoreHorizontal, Edit, CheckCircle, Trash2, CalendarClock } from "lucide
 import type { Ticket } from "@workspace/api-client-react";
 import { useTicketsManager } from "@/hooks/use-tickets-manager";
 import { TicketStatusBadge } from "./ticket-status-badge";
+import { TicketPriorityBadge } from "./ticket-priority-badge";
 import { TimeSince } from "./time-since";
 import { TicketFormDialog } from "./ticket-form-dialog";
 
@@ -102,6 +103,7 @@ export function TicketTable({ tickets, isLoading }: TicketTableProps) {
                 <TableHead className="font-medium text-foreground">State</TableHead>
                 <TableHead className="font-medium text-foreground">Category</TableHead>
                 <TableHead className="font-medium text-foreground">Status</TableHead>
+                <TableHead className="font-medium text-foreground hidden sm:table-cell">Priority</TableHead>
                 <TableHead className="font-medium text-foreground hidden md:table-cell">Submitted</TableHead>
                 <TableHead className="font-medium text-foreground hidden lg:table-cell">Time Since</TableHead>
                 <TableHead className="text-right font-medium text-foreground">Actions</TableHead>
@@ -130,6 +132,9 @@ export function TicketTable({ tickets, isLoading }: TicketTableProps) {
                   </TableCell>
                   <TableCell>
                     <TicketStatusBadge status={ticket.status as any} pendingDate={ticket.pendingDate} />
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <TicketPriorityBadge priority={ticket.priority ?? "medium"} />
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     <span className="text-sm text-muted-foreground">

@@ -5,6 +5,7 @@
  * Project Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { ExportTicketsPriority } from "./exportTicketsPriority";
 import type { ExportTicketsSortBy } from "./exportTicketsSortBy";
 
 export type ExportTicketsParams = {
@@ -12,6 +13,7 @@ export type ExportTicketsParams = {
   submitter?: string;
   status?: string;
   category?: string;
+  priority?: ExportTicketsPriority;
   /**
    * Free-text search on title or submitter
    */

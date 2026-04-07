@@ -27,3 +27,12 @@ export const STATUSES = [
   { value: "pending", label: "Pending" },
   { value: "complete", label: "Complete" }
 ] as const;
+
+export const PRIORITIES = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "critical", label: "Critical" }
+] as const;
+
+export type Priority = typeof PRIORITIES[number]["value"];

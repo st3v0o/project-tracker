@@ -5,7 +5,7 @@ import { z } from "zod";
 import { format } from "date-fns";
 import { CalendarIcon, ChevronsUpDown, Check, ImageIcon, Loader2, X, Sparkles } from "lucide-react";
 import { useTicketsManager } from "@/hooks/use-tickets-manager";
-import { US_STATES, CATEGORIES } from "@/lib/constants";
+import { US_STATES, CATEGORIES, PRIORITIES } from "@/lib/constants";
 import type { Ticket } from "@workspace/api-client-react";
 
 import {
@@ -60,6 +60,7 @@ const formSchema = z.object({
   submitter: z.string().min(1, "Submitter is required"),
   category: z.string().min(1, "Category is required"),
   status: z.enum(["todo", "pending", "complete"]),
+  priority: z.enum(["low", "medium", "high", "critical"]),
   pendingDate: z.date().optional().nullable(),
 });
 
@@ -136,6 +137,7 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
       submitter: "",
       category: "",
       status: "todo",
+      priority: "medium",
       pendingDate: null,
     },
   });
@@ -151,6 +153,7 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
         submitter: ticket.submitter,
         category: ticket.category,
         status: ticket.status as any,
+        priority: (ticket.priority ?? "medium") as any,
         pendingDate: ticket.pendingDate ? new Date(ticket.pendingDate) : null,
       });
     } else if (open && !ticket) {
@@ -161,6 +164,7 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
         submitter: "",
         category: "",
         status: "todo",
+        priority: "medium",
         pendingDate: null,
       });
       setPreviewUrl(null);
@@ -271,6 +275,7 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
             submitter: data.submitter,
             category: data.category,
             status: data.status,
+            priority: data.priority,
             pendingDate: formattedPendingDate,
             completedAt,
           }
@@ -284,6 +289,7 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
             submitter: data.submitter,
             category: data.category,
             status: data.status,
+            priority: data.priority,
           }
         });
       }
@@ -529,6 +535,31 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
                         <SelectItem value="todo">To Do (Today)</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="complete">Complete</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="priority"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Priority</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="bg-background/50">
+                          <SelectValue placeholder="Select priority" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {PRIORITIES.map((p) => (
+                          <SelectItem key={p.value} value={p.value}>
+                            {p.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

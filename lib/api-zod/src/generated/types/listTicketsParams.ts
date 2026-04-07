@@ -5,10 +5,12 @@
  * Project Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { ListTicketsPriority } from "./listTicketsPriority";
 
 export type ListTicketsParams = {
   state?: string;
   submitter?: string;
   status?: string;
   category?: string;
+  priority?: ListTicketsPriority;
 };

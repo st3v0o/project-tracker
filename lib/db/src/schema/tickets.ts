@@ -10,6 +10,7 @@ export const ticketsTable = pgTable("tickets", {
   submitter: text("submitter").notNull(),
   category: text("category").notNull(),
   status: text("status").notNull().default("todo"),
+  priority: text("priority").notNull().default("medium"),
   pendingDate: date("pending_date"),
   completedAt: timestamp("completed_at"),
   submittedAt: timestamp("submitted_at").notNull().defaultNow(),

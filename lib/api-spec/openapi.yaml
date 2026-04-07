@@ -49,6 +49,11 @@ paths:
           in: query
           schema:
             type: string
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
       responses:
         "200":
           description: List of tickets
@@ -170,6 +175,11 @@ paths:
           in: query
           schema:
             type: string
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
         - name: search
           in: query
           schema:
@@ -188,6 +198,8 @@ paths:
               - state_asc
               - category_asc
               - status
+              - priority_high
+              - priority_low
           description: "Sort order matching the dashboard SORT_OPTIONS. Defaults to newest."
       responses:
         "200":
@@ -255,6 +267,11 @@ components:
           type: string
           enum: [todo, pending, complete]
           description: todo = for today, pending = carried over, complete = done
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          default: medium
+          description: Priority level of the ticket
         pendingDate:
           type: string
           format: date
@@ -283,6 +300,7 @@ components:
         - submitter
         - category
         - status
+        - priority
         - submittedAt
         - createdAt
         - updatedAt
@@ -304,6 +322,10 @@ components:
           type: string
           enum: [todo, pending, complete]
           default: todo
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          default: medium
         submittedAt:
           type: string
           format: date-time
@@ -330,6 +352,9 @@ components:
         status:
           type: string
           enum: [todo, pending, complete]
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
         pendingDate:
           type: string
           nullable: true

@@ -5,7 +5,7 @@ import { useTicketsManager } from "@/hooks/use-tickets-manager";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { TicketTable } from "@/components/ticket-table";
 import { TicketFormDialog } from "@/components/ticket-form-dialog";
-import { US_STATES, CATEGORIES, STATUSES } from "@/lib/constants";
+import { US_STATES, CATEGORIES, STATUSES, PRIORITIES } from "@/lib/constants";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,12 +26,15 @@ export default function Dashboard() {
   const [stateFilter, setStateFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<string>("newest");
 
   const SORT_OPTIONS = [
     { value: "newest", label: "Newest First" },
     { value: "oldest", label: "Oldest First" },
+    { value: "priority_high", label: "Priority (High → Low)" },
+    { value: "priority_low", label: "Priority (Low → High)" },
     { value: "title_asc", label: "Title (A–Z)" },
     { value: "title_desc", label: "Title (Z–A)" },
     { value: "submitter_asc", label: "Submitter (A–Z)" },
@@ -41,6 +44,7 @@ export default function Dashboard() {
   ];
 
   const STATUS_ORDER: Record<string, number> = { todo: 0, pending: 1, complete: 2 };
+  const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
   // Apply filters + sort locally
   const filteredTickets = useMemo(() => {
@@ -53,8 +57,9 @@ export default function Dashboard() {
       const matchesState = stateFilter === "all" || ticket.state === stateFilter;
       const matchesCat = categoryFilter === "all" || ticket.category === categoryFilter;
       const matchesStatus = statusFilter === "all" || ticket.status === statusFilter;
+      const matchesPriority = priorityFilter === "all" || ticket.priority === priorityFilter;
 
-      return matchesSearch && matchesState && matchesCat && matchesStatus;
+      return matchesSearch && matchesState && matchesCat && matchesStatus && matchesPriority;
     });
 
     return [...filtered].sort((a, b) => {
@@ -75,21 +80,27 @@ export default function Dashboard() {
           return (STATUS_ORDER[a.status] ?? 0) - (STATUS_ORDER[b.status] ?? 0);
         case "category_asc":
           return a.category.localeCompare(b.category);
+        case "priority_high":
+          return (PRIORITY_ORDER[a.priority ?? "medium"] ?? 2) - (PRIORITY_ORDER[b.priority ?? "medium"] ?? 2);
+        case "priority_low":
+          return (PRIORITY_ORDER[b.priority ?? "medium"] ?? 2) - (PRIORITY_ORDER[a.priority ?? "medium"] ?? 2);
         default:
           return 0;
       }
     });
-  }, [tickets, search, stateFilter, categoryFilter, statusFilter, sortBy]);
+  }, [tickets, search, stateFilter, categoryFilter, statusFilter, priorityFilter, sortBy]);
 
   const activeFiltersCount = 
     (stateFilter !== "all" ? 1 : 0) + 
     (categoryFilter !== "all" ? 1 : 0) + 
-    (statusFilter !== "all" ? 1 : 0);
+    (statusFilter !== "all" ? 1 : 0) +
+    (priorityFilter !== "all" ? 1 : 0);
 
   const clearFilters = () => {
     setStateFilter("all");
     setCategoryFilter("all");
     setStatusFilter("all");
+    setPriorityFilter("all");
     setSearch("");
   };
 
@@ -98,6 +109,7 @@ export default function Dashboard() {
     if (stateFilter !== "all") params.set("state", stateFilter);
     if (categoryFilter !== "all") params.set("category", categoryFilter);
     if (statusFilter !== "all") params.set("status", statusFilter);
+    if (priorityFilter !== "all") params.set("priority", priorityFilter);
     if (search.trim()) params.set("search", search.trim());
     params.set("sortBy", sortBy);
     const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
@@ -108,7 +120,7 @@ export default function Dashboard() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  }, [stateFilter, categoryFilter, statusFilter, search, sortBy]);
+  }, [stateFilter, categoryFilter, statusFilter, priorityFilter, search, sortBy]);
 
   return (
     <div className="min-h-screen bg-background pb-12">
@@ -206,7 +218,7 @@ export default function Dashboard() {
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 mt-4 border-t border-border/40">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 mt-4 border-t border-border/40">
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground px-1">Status</label>
                       <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -216,6 +228,18 @@ export default function Dashboard() {
                         <SelectContent>
                           <SelectItem value="all">All Statuses</SelectItem>
                           {STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground px-1">Priority</label>
+                      <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                        <SelectTrigger className="bg-background/50 rounded-xl">
+                          <SelectValue placeholder="All Priorities" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Priorities</SelectItem>
+                          {PRIORITIES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>

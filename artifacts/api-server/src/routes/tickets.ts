@@ -23,13 +23,14 @@ router.get("/tickets", async (req, res) => {
       return;
     }
 
-    const { state, submitter, status, category } = parsed.data;
+    const { state, submitter, status, category, priority } = parsed.data;
 
     const conditions: SQL[] = [];
     if (state) conditions.push(eq(ticketsTable.state, state));
     if (submitter) conditions.push(eq(ticketsTable.submitter, submitter));
     if (status) conditions.push(eq(ticketsTable.status, status));
     if (category) conditions.push(eq(ticketsTable.category, category));
+    if (priority) conditions.push(eq(ticketsTable.priority, priority));
 
     const tickets =
       conditions.length > 0
@@ -60,7 +61,7 @@ router.get("/tickets/export", async (req, res) => {
       return;
     }
 
-    const { state, submitter, status, category, search: rawSearch, sortBy } = parsed.data;
+    const { state, submitter, status, category, priority, search: rawSearch, sortBy } = parsed.data;
     const search = rawSearch?.trim() ?? "";
 
     const conditions: SQL[] = [];
@@ -68,6 +69,7 @@ router.get("/tickets/export", async (req, res) => {
     if (submitter) conditions.push(eq(ticketsTable.submitter, submitter));
     if (status) conditions.push(eq(ticketsTable.status, status));
     if (category) conditions.push(eq(ticketsTable.category, category));
+    if (priority) conditions.push(eq(ticketsTable.priority, priority));
     if (search) {
       conditions.push(
         or(
@@ -89,6 +91,12 @@ router.get("/tickets/export", async (req, res) => {
         case "status":
           // todo → pending → complete
           return sql`CASE status WHEN 'todo' THEN 0 WHEN 'pending' THEN 1 WHEN 'complete' THEN 2 ELSE 3 END ASC`;
+        case "priority_high":
+          // critical → high → medium → low
+          return sql`CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END ASC`;
+        case "priority_low":
+          // low → medium → high → critical
+          return sql`CASE priority WHEN 'low' THEN 0 WHEN 'medium' THEN 1 WHEN 'high' THEN 2 WHEN 'critical' THEN 3 ELSE 4 END ASC`;
         case "newest":
         default:              return desc(ticketsTable.submittedAt);
       }
@@ -146,7 +154,7 @@ router.get("/tickets/export", async (req, res) => {
         state: t.state,
         category: t.category,
         status: t.status,
-        priority: "N/A",
+        priority: t.priority,
         description: t.description,
         submittedAt: format(submittedAt, "MM/dd/yyyy HH:mm"),
         completedAt: t.completedAt ? format(new Date(t.completedAt), "MM/dd/yyyy HH:mm") : "",
@@ -203,7 +211,7 @@ router.post("/tickets", async (req, res) => {
       return;
     }
 
-    const { title, description, state, submitter, category, status, submittedAt } = parsed.data;
+    const { title, description, state, submitter, category, status, priority, submittedAt } = parsed.data;
 
     const [ticket] = await db
       .insert(ticketsTable)
@@ -214,6 +222,7 @@ router.post("/tickets", async (req, res) => {
         submitter,
         category,
         status: status ?? "todo",
+        priority: priority ?? "medium",
         submittedAt: submittedAt ? new Date(submittedAt) : new Date(),
       })
       .returning();
@@ -289,6 +298,7 @@ router.patch("/tickets/:id", async (req, res) => {
       submitter,
       category,
       status,
+      priority,
       pendingDate,
       completedAt,
       submittedAt,
@@ -300,6 +310,7 @@ router.patch("/tickets/:id", async (req, res) => {
     if (submitter !== undefined) updateData.submitter = submitter;
     if (category !== undefined) updateData.category = category;
     if (status !== undefined) updateData.status = status;
+    if (priority !== undefined) updateData.priority = priority;
     if (pendingDate !== undefined) updateData.pendingDate = pendingDate ?? null;
     if (completedAt !== undefined)
       updateData.completedAt = completedAt ? new Date(completedAt) : null;

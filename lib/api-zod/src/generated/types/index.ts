@@ -7,15 +7,20 @@
  */
 
 export * from "./createTicketRequest";
+export * from "./createTicketRequestPriority";
 export * from "./createTicketRequestStatus";
 export * from "./errorResponse";
 export * from "./exportTicketsParams";
+export * from "./exportTicketsPriority";
 export * from "./exportTicketsSortBy";
 export * from "./healthStatus";
 export * from "./listTicketsParams";
+export * from "./listTicketsPriority";
 export * from "./parseImageRequest";
 export * from "./parseImageResponse";
 export * from "./ticket";
+export * from "./ticketPriority";
 export * from "./ticketStatus";
 export * from "./updateTicketRequest";
+export * from "./updateTicketRequestPriority";
 export * from "./updateTicketRequestStatus";

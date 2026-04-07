@@ -5,6 +5,7 @@
  * Project Tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateTicketRequestPriority } from "./createTicketRequestPriority";
 import type { CreateTicketRequestStatus } from "./createTicketRequestStatus";
 
 export interface CreateTicketRequest {
@@ -14,5 +15,6 @@ export interface CreateTicketRequest {
   submitter: string;
   category: string;
   status?: CreateTicketRequestStatus;
+  priority?: CreateTicketRequestPriority;
   submittedAt?: Date;
 }

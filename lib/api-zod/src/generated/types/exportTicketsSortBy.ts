@@ -18,4 +18,6 @@ export const ExportTicketsSortBy = {
   state_asc: "state_asc",
   category_asc: "category_asc",
   status: "status",
+  priority_high: "priority_high",
+  priority_low: "priority_low",
 } as const;
