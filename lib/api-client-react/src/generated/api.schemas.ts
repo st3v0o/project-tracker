@@ -111,3 +111,14 @@ export type ListTicketsParams = {
   status?: string;
   category?: string;
 };
+
+export type ExportTicketsParams = {
+  state?: string;
+  submitter?: string;
+  status?: string;
+  category?: string;
+  /**
+   * Free-text search on title or submitter
+   */
+  search?: string;
+};

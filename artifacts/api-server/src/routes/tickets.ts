@@ -9,7 +9,7 @@ import {
   UpdateTicketParams,
   DeleteTicketParams,
 } from "@workspace/api-zod";
-import { eq, and, SQL } from "drizzle-orm";
+import { eq, and, or, ilike, SQL } from "drizzle-orm";
 import { format } from "date-fns";
 
 const router: IRouter = Router();
@@ -60,11 +60,22 @@ router.get("/tickets/export", async (req, res) => {
     }
 
     const { state, submitter, status, category } = parsed.data;
+    // Optional free-text search matching dashboard behaviour (title OR submitter)
+    const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+
     const conditions: SQL[] = [];
     if (state) conditions.push(eq(ticketsTable.state, state));
     if (submitter) conditions.push(eq(ticketsTable.submitter, submitter));
     if (status) conditions.push(eq(ticketsTable.status, status));
     if (category) conditions.push(eq(ticketsTable.category, category));
+    if (search) {
+      conditions.push(
+        or(
+          ilike(ticketsTable.title, `%${search}%`),
+          ilike(ticketsTable.submitter, `%${search}%`)
+        ) as SQL
+      );
+    }
 
     const tickets =
       conditions.length > 0
@@ -77,34 +88,39 @@ router.get("/tickets/export", async (req, res) => {
 
     const sheet = workbook.addWorksheet("Tickets");
 
-    sheet.columns = [
-      { header: "ID", key: "id", width: 8 },
-      { header: "Title", key: "title", width: 40 },
-      { header: "Submitter", key: "submitter", width: 20 },
-      { header: "State", key: "state", width: 20 },
-      { header: "Category", key: "category", width: 20 },
-      { header: "Status", key: "status", width: 12 },
-      { header: "Description", key: "description", width: 50 },
-      { header: "Submitted At", key: "submittedAt", width: 22 },
-      { header: "Pending Date", key: "pendingDate", width: 16 },
-      { header: "Completed At", key: "completedAt", width: 22 },
-      { header: "Time Since (days)", key: "timeSinceDays", width: 20 },
-      { header: "Created At", key: "createdAt", width: 22 },
+    // Define columns — keys must match row object properties
+    const COLS: { header: string; key: string; minWidth: number }[] = [
+      { header: "ID", key: "id", minWidth: 6 },
+      { header: "Title", key: "title", minWidth: 20 },
+      { header: "Submitter", key: "submitter", minWidth: 14 },
+      { header: "State", key: "state", minWidth: 14 },
+      { header: "Category", key: "category", minWidth: 16 },
+      { header: "Status", key: "status", minWidth: 10 },
+      { header: "Description", key: "description", minWidth: 30 },
+      { header: "Submitted At", key: "submittedAt", minWidth: 18 },
+      { header: "Pending Date", key: "pendingDate", minWidth: 14 },
+      { header: "Completed At", key: "completedAt", minWidth: 18 },
+      { header: "Time Since (days)", key: "timeSinceDays", minWidth: 18 },
     ];
+
+    sheet.columns = COLS.map((c) => ({ header: c.header, key: c.key, width: c.minWidth }));
 
     // Style header row
     const headerRow = sheet.getRow(1);
     headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
     headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F46E5" } };
     headerRow.alignment = { vertical: "middle", horizontal: "center" };
-    headerRow.height = 20;
+    headerRow.height = 22;
+
+    // Track max cell length per column for auto-sizing
+    const colWidths: number[] = COLS.map((c) => c.header.length);
 
     const now = new Date();
     for (const t of tickets) {
       const submittedAt = new Date(t.submittedAt);
       const daysSince = Math.floor((now.getTime() - submittedAt.getTime()) / (1000 * 60 * 60 * 24));
 
-      sheet.addRow({
+      const rowValues: Record<string, string | number> = {
         id: t.id,
         title: t.title,
         submitter: t.submitter,
@@ -116,9 +132,22 @@ router.get("/tickets/export", async (req, res) => {
         pendingDate: t.pendingDate ?? "",
         completedAt: t.completedAt ? format(new Date(t.completedAt), "MM/dd/yyyy HH:mm") : "",
         timeSinceDays: daysSince,
-        createdAt: format(new Date(t.createdAt), "MM/dd/yyyy HH:mm"),
+      };
+
+      sheet.addRow(rowValues);
+
+      // Update max column widths (cap description at 60)
+      COLS.forEach((col, i) => {
+        const val = String(rowValues[col.key] ?? "");
+        const len = col.key === "description" ? Math.min(val.length, 60) : val.length;
+        colWidths[i] = Math.max(colWidths[i], len);
       });
     }
+
+    // Apply computed widths + add a small padding
+    sheet.columns.forEach((col, i) => {
+      col.width = Math.max(colWidths[i] + 2, COLS[i].minWidth);
+    });
 
     // Zebra stripe rows
     sheet.eachRow((row, rowNumber) => {
@@ -129,8 +158,9 @@ router.get("/tickets/export", async (req, res) => {
       row.alignment = { vertical: "middle", wrapText: false };
     });
 
-    // Freeze header row
+    // Freeze header row + enable auto-filter
     sheet.views = [{ state: "frozen", ySplit: 1 }];
+    sheet.autoFilter = { from: "A1", to: { row: 1, column: COLS.length } };
 
     const dateStr = format(now, "yyyy-MM-dd");
     const filename = `tickets-export-${dateStr}.xlsx`;

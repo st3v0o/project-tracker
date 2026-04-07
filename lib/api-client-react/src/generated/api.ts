@@ -19,6 +19,7 @@ import type {
 import type {
   CreateTicketRequest,
   ErrorResponse,
+  ExportTicketsParams,
   HealthStatus,
   ListTicketsParams,
   ParseImageRequest,
@@ -547,6 +548,100 @@ export const useDeleteTicket = <
 > => {
   return useMutation(getDeleteTicketMutationOptions(options));
 };
+
+/**
+ * @summary Export tickets as an Excel file
+ */
+export const getExportTicketsUrl = (params?: ExportTicketsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/tickets/export?${stringifiedParams}`
+    : `/api/tickets/export`;
+};
+
+export const exportTickets = async (
+  params?: ExportTicketsParams,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getExportTicketsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportTicketsQueryKey = (params?: ExportTicketsParams) => {
+  return [`/api/tickets/export`, ...(params ? [params] : [])] as const;
+};
+
+export const getExportTicketsQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportTickets>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportTicketsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportTickets>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getExportTicketsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof exportTickets>>> = ({
+    signal,
+  }) => exportTickets(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportTickets>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportTicketsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportTickets>>
+>;
+export type ExportTicketsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Export tickets as an Excel file
+ */
+
+export function useExportTickets<
+  TData = Awaited<ReturnType<typeof exportTickets>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportTicketsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportTickets>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportTicketsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Parse a screenshot to extract ticket fields

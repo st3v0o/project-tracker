@@ -149,6 +149,20 @@ export const DeleteTicketParams = zod.object({
 });
 
 /**
+ * @summary Export tickets as an Excel file
+ */
+export const ExportTicketsQueryParams = zod.object({
+  state: zod.coerce.string().optional(),
+  submitter: zod.coerce.string().optional(),
+  status: zod.coerce.string().optional(),
+  category: zod.coerce.string().optional(),
+  search: zod.coerce
+    .string()
+    .optional()
+    .describe("Free-text search on title or submitter"),
+});
+
+/**
  * @summary Parse a screenshot to extract ticket fields
  */
 export const ParseTicketImageBody = zod.object({
