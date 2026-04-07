@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { db, ticketsTable } from "@workspace/db";
 import {
   ListTicketsQueryParams,
+  ExportTicketsQueryParams,
   CreateTicketBody,
   UpdateTicketBody,
   GetTicketParams,
@@ -53,15 +54,14 @@ router.get("/tickets", async (req, res) => {
 
 router.get("/tickets/export", async (req, res) => {
   try {
-    const parsed = ListTicketsQueryParams.safeParse(req.query);
+    const parsed = ExportTicketsQueryParams.safeParse(req.query);
     if (!parsed.success) {
       res.status(400).json({ error: "Invalid query parameters" });
       return;
     }
 
-    const { state, submitter, status, category } = parsed.data;
-    // Optional free-text search matching dashboard behaviour (title OR submitter)
-    const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+    const { state, submitter, status, category, search: rawSearch } = parsed.data;
+    const search = rawSearch?.trim() ?? "";
 
     const conditions: SQL[] = [];
     if (state) conditions.push(eq(ticketsTable.state, state));
