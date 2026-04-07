@@ -96,9 +96,9 @@ router.get("/tickets/export", async (req, res) => {
       { header: "State", key: "state", minWidth: 14 },
       { header: "Category", key: "category", minWidth: 16 },
       { header: "Status", key: "status", minWidth: 10 },
+      { header: "Priority", key: "priority", minWidth: 12 },
       { header: "Description", key: "description", minWidth: 30 },
       { header: "Submitted At", key: "submittedAt", minWidth: 18 },
-      { header: "Pending Date", key: "pendingDate", minWidth: 14 },
       { header: "Completed At", key: "completedAt", minWidth: 18 },
       { header: "Time Since (days)", key: "timeSinceDays", minWidth: 18 },
     ];
@@ -127,9 +127,10 @@ router.get("/tickets/export", async (req, res) => {
         state: t.state,
         category: t.category,
         status: t.status,
+        // priority field will be populated once Task #2 (Add Ticket Priority) is complete
+        priority: (t as Record<string, unknown>).priority as string ?? "N/A",
         description: t.description,
         submittedAt: format(submittedAt, "MM/dd/yyyy HH:mm"),
-        pendingDate: t.pendingDate ?? "",
         completedAt: t.completedAt ? format(new Date(t.completedAt), "MM/dd/yyyy HH:mm") : "",
         timeSinceDays: daysSince,
       };

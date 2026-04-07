@@ -120,15 +120,7 @@ export default function Dashboard() {
             </div>
             <h1 className="text-xl font-display font-bold text-foreground">Project Tracker</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="rounded-full px-4 hidden sm:flex"
-              onClick={handleExport}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
+          <div className="flex items-center gap-4">
             <TicketFormDialog trigger={
               <Button className="shadow-sm shadow-primary/20 hover:shadow-md transition-all rounded-full px-5">
                 <Plus className="w-4 h-4 mr-2" />
@@ -197,6 +189,11 @@ export default function Dashboard() {
                     <X className="w-4 h-4" />
                   </Button>
                 )}
+                {/* Export button — always visible, exports what is currently filtered/visible */}
+                <Button variant="outline" className="rounded-xl w-full sm:w-auto" onClick={handleExport}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
               </div>
             </div>
 
