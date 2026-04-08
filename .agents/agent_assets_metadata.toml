@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "l9y0Sh4DqrMQS-NoPq1nx"
+uri = "file://artifacts/tracker-mobile/assets/images/icon.png"
+type = "image"
+title = "tracker mobile app icon"
