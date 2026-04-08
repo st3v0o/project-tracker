@@ -191,34 +191,6 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
     }
   };
 
-  const handleCameraCapture = useCallback(async (dataUrl: string, mimeType: string) => {
-    setShowCamera(false);
-    setIsParsingImage(true);
-    setParseError(null);
-    setConfidence(null);
-    setPreviewUrl(dataUrl);
-
-    try {
-      const fields = await parseImage(dataUrl, mimeType);
-      if (fields.title) form.setValue("title", fields.title, { shouldValidate: true });
-      if (fields.description) form.setValue("description", fields.description, { shouldValidate: true });
-      if (fields.submitter) form.setValue("submitter", fields.submitter, { shouldValidate: true });
-      if (fields.state) {
-        const matched = US_STATES.find((s) => s.toLowerCase() === fields.state!.toLowerCase());
-        if (matched) form.setValue("state", matched, { shouldValidate: true });
-      }
-      if (fields.category) {
-        const matched = CATEGORIES.find((c) => c.toLowerCase() === fields.category!.toLowerCase());
-        if (matched) form.setValue("category", matched, { shouldValidate: true });
-      }
-      if (fields.confidence) setConfidence(fields.confidence);
-    } catch (err: any) {
-      setParseError(err.message ?? "Failed to analyze image.");
-    } finally {
-      setIsParsingImage(false);
-    }
-  }, [form]);
-
   const processImageFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) {
       setParseError("Please provide an image file.");
@@ -249,8 +221,9 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
         if (matchedCat) form.setValue("category", matchedCat, { shouldValidate: true });
       }
       if (fields.confidence) setConfidence(fields.confidence);
-    } catch (err: any) {
-      setParseError(err.message ?? "Failed to analyze image.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to analyze image.";
+      setParseError(message);
     } finally {
       setIsParsingImage(false);
     }
@@ -351,7 +324,7 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
                 {/* Camera live view */}
                 {showCamera && (
                   <CameraCapture
-                    onCapture={handleCameraCapture}
+                    onCapture={(file) => { setShowCamera(false); processImageFile(file); }}
                     onClose={() => setShowCamera(false)}
                   />
                 )}

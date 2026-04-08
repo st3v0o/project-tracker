@@ -1,16 +1,15 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import { Camera, X, CircleOff } from "lucide-react";
+import { Camera, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CameraCaptureProps {
-  onCapture: (dataUrl: string, mimeType: string) => void;
+  onCapture: (file: File) => void;
   onClose: () => void;
 }
 
 export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -33,7 +32,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
         }
         setReady(true);
       } catch {
-        if (active) setError("Camera access denied or not available.");
+        if (active) onClose();
       }
     }
 
@@ -44,7 +43,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
-  }, []);
+  }, [onClose]);
 
   const capture = useCallback(() => {
     const video = videoRef.current;
@@ -57,10 +56,14 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const dataUrl = canvas.toDataURL("image/png");
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-    onCapture(dataUrl, "image/png");
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], "camera-capture.png", { type: "image/png" });
+      onCapture(file);
+    }, "image/png");
   }, [onCapture]);
 
   return (
@@ -74,33 +77,24 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
         <X className="h-4 w-4" />
       </button>
 
-      {error ? (
-        <div className="flex flex-col items-center justify-center gap-2 py-8 px-4 text-center">
-          <CircleOff className="h-7 w-7 text-muted-foreground/60" />
-          <p className="text-sm text-muted-foreground">{error}</p>
+      <video
+        ref={videoRef}
+        playsInline
+        muted
+        className="w-full max-h-52 object-cover"
+      />
+      {ready && (
+        <div className="flex justify-center py-3 bg-black/60">
+          <Button
+            type="button"
+            size="sm"
+            onClick={capture}
+            className="gap-2 rounded-full px-6"
+          >
+            <Camera className="h-4 w-4" />
+            Capture
+          </Button>
         </div>
-      ) : (
-        <>
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            className="w-full max-h-52 object-cover"
-          />
-          {ready && (
-            <div className="flex justify-center py-3 bg-black/60">
-              <Button
-                type="button"
-                size="sm"
-                onClick={capture}
-                className="gap-2 rounded-full px-6"
-              >
-                <Camera className="h-4 w-4" />
-                Capture
-              </Button>
-            </div>
-          )}
-        </>
       )}
     </div>
   );
