@@ -3,10 +3,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronsUpDown, Check, ImageIcon, Loader2, X, Sparkles } from "lucide-react";
+import { CalendarIcon, ChevronsUpDown, Check, ImageIcon, Loader2, X, Sparkles, Camera } from "lucide-react";
 import { useTicketsManager } from "@/hooks/use-tickets-manager";
 import { US_STATES, CATEGORIES, PRIORITIES } from "@/lib/constants";
 import type { Ticket } from "@workspace/api-client-react";
+import { CameraCapture, isCameraAvailable } from "./camera-capture";
 
 import {
   Dialog,
@@ -121,8 +122,10 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
   const [parseError, setParseError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [confidence, setConfidence] = useState<string | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraSupported = isCameraAvailable();
 
   const { createTicket, updateTicket, isCreating, isUpdating } = useTicketsManager();
   const isEditMode = !!ticket;
@@ -184,8 +187,37 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
       setPreviewUrl(null);
       setConfidence(null);
       setParseError(null);
+      setShowCamera(false);
     }
   };
+
+  const handleCameraCapture = useCallback(async (dataUrl: string, mimeType: string) => {
+    setShowCamera(false);
+    setIsParsingImage(true);
+    setParseError(null);
+    setConfidence(null);
+    setPreviewUrl(dataUrl);
+
+    try {
+      const fields = await parseImage(dataUrl, mimeType);
+      if (fields.title) form.setValue("title", fields.title, { shouldValidate: true });
+      if (fields.description) form.setValue("description", fields.description, { shouldValidate: true });
+      if (fields.submitter) form.setValue("submitter", fields.submitter, { shouldValidate: true });
+      if (fields.state) {
+        const matched = US_STATES.find((s) => s.toLowerCase() === fields.state!.toLowerCase());
+        if (matched) form.setValue("state", matched, { shouldValidate: true });
+      }
+      if (fields.category) {
+        const matched = CATEGORIES.find((c) => c.toLowerCase() === fields.category!.toLowerCase());
+        if (matched) form.setValue("category", matched, { shouldValidate: true });
+      }
+      if (fields.confidence) setConfidence(fields.confidence);
+    } catch (err: any) {
+      setParseError(err.message ?? "Failed to analyze image.");
+    } finally {
+      setIsParsingImage(false);
+    }
+  }, [form]);
 
   const processImageFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -315,95 +347,119 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
 
             {/* AI Image Drop Zone — only shown for new tickets */}
             {!isEditMode && (
-              <div
-                ref={dropZoneRef}
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={handleDrop}
-                className={cn(
-                  "relative rounded-xl border-2 border-dashed transition-all duration-200 cursor-pointer",
-                  isDragging
-                    ? "border-primary bg-primary/10 scale-[1.01]"
-                    : "border-border/60 bg-muted/30 hover:border-primary/60 hover:bg-muted/50"
+              <div className="space-y-2">
+                {/* Camera live view */}
+                {showCamera && (
+                  <CameraCapture
+                    onCapture={handleCameraCapture}
+                    onClose={() => setShowCamera(false)}
+                  />
                 )}
-                onClick={() => !isParsingImage && fileInputRef.current?.click()}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileInputChange}
-                />
 
-                {previewUrl ? (
-                  <div className="p-3 flex items-start gap-3">
-                    <img
-                      src={previewUrl}
-                      alt="Uploaded screenshot"
-                      className="h-20 w-20 object-cover rounded-lg border border-border/40 flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
-                        <span className="text-sm font-medium text-foreground">
-                          {isParsingImage ? "Analyzing screenshot..." : "Fields auto-filled from screenshot"}
-                        </span>
-                        {!isParsingImage && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPreviewUrl(null);
-                              setConfidence(null);
-                              setParseError(null);
-                            }}
-                            className="ml-auto text-muted-foreground hover:text-foreground"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
+                <div
+                  ref={dropZoneRef}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                  className={cn(
+                    "relative rounded-xl border-2 border-dashed transition-all duration-200",
+                    !showCamera && !isParsingImage && !previewUrl && "cursor-pointer",
+                    isDragging
+                      ? "border-primary bg-primary/10 scale-[1.01]"
+                      : "border-border/60 bg-muted/30 hover:border-primary/60 hover:bg-muted/50"
+                  )}
+                  onClick={() => !isParsingImage && !showCamera && !previewUrl && fileInputRef.current?.click()}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileInputChange}
+                  />
+
+                  {previewUrl ? (
+                    <div className="p-3 flex items-start gap-3">
+                      <img
+                        src={previewUrl}
+                        alt="Uploaded screenshot"
+                        className="h-20 w-20 object-cover rounded-lg border border-border/40 flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
+                          <span className="text-sm font-medium text-foreground">
+                            {isParsingImage ? "Analyzing image..." : "Fields auto-filled from image"}
+                          </span>
+                          {!isParsingImage && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewUrl(null);
+                                setConfidence(null);
+                                setParseError(null);
+                              }}
+                              className="ml-auto text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                        {isParsingImage && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span>Reading image with AI...</span>
+                          </div>
+                        )}
+                        {confidence && !isParsingImage && (
+                          <Badge variant="secondary" className="text-xs">
+                            Confidence: {confidence}
+                          </Badge>
+                        )}
+                        {parseError && !isParsingImage && (
+                          <p className="text-xs text-destructive mt-1">{parseError}</p>
                         )}
                       </div>
-                      {isParsingImage && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          <span>Reading image with AI...</span>
-                        </div>
-                      )}
-                      {confidence && !isParsingImage && (
-                        <Badge variant="secondary" className="text-xs">
-                          Confidence: {confidence}
-                        </Badge>
-                      )}
-                      {parseError && !isParsingImage && (
-                        <p className="text-xs text-destructive mt-1">{parseError}</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-2 py-5 px-4 text-center">
+                      {isParsingImage ? (
+                        <>
+                          <Loader2 className="h-7 w-7 text-primary animate-spin" />
+                          <p className="text-sm text-muted-foreground">Analyzing your image with AI...</p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <ImageIcon className="h-6 w-6 text-muted-foreground/60" />
+                            <Sparkles className="h-4 w-4 text-primary/60" />
+                          </div>
+                          <p className="text-sm font-medium text-foreground">Drop or paste a screenshot to auto-fill</p>
+                          <p className="text-xs text-muted-foreground">
+                            Paste (Ctrl+V) · Drag &amp; drop · or click to browse
+                          </p>
+                          {cameraSupported && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowCamera(true);
+                              }}
+                              className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-primary/80 hover:text-primary transition-colors"
+                            >
+                              <Camera className="h-3.5 w-3.5" />
+                              Take Photo
+                            </button>
+                          )}
+                          {parseError && (
+                            <p className="text-xs text-destructive">{parseError}</p>
+                          )}
+                        </>
                       )}
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center gap-2 py-5 px-4 text-center">
-                    {isParsingImage ? (
-                      <>
-                        <Loader2 className="h-7 w-7 text-primary animate-spin" />
-                        <p className="text-sm text-muted-foreground">Analyzing your screenshot with AI...</p>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <ImageIcon className="h-6 w-6 text-muted-foreground/60" />
-                          <Sparkles className="h-4 w-4 text-primary/60" />
-                        </div>
-                        <p className="text-sm font-medium text-foreground">Drop or paste a screenshot to auto-fill</p>
-                        <p className="text-xs text-muted-foreground">
-                          Paste an image (Ctrl+V) · Drag &amp; drop · or click to browse
-                        </p>
-                        {parseError && (
-                          <p className="text-xs text-destructive">{parseError}</p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
 
