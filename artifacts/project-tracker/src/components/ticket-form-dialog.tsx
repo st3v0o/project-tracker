@@ -123,6 +123,7 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [confidence, setConfidence] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [cameraDenied, setCameraDenied] = useState(false);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraSupported = isCameraAvailable();
@@ -188,6 +189,7 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
       setConfidence(null);
       setParseError(null);
       setShowCamera(false);
+      setCameraDenied(false);
     }
   };
 
@@ -326,6 +328,7 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
                   <CameraCapture
                     onCapture={(file) => { setShowCamera(false); processImageFile(file); }}
                     onClose={() => setShowCamera(false)}
+                    onDenied={() => { setShowCamera(false); setCameraDenied(true); }}
                   />
                 )}
 
@@ -412,7 +415,7 @@ export function TicketFormDialog({ ticket, trigger, open: controlledOpen, onOpen
                           <p className="text-xs text-muted-foreground">
                             Paste (Ctrl+V) · Drag &amp; drop · or click to browse
                           </p>
-                          {cameraSupported && (
+                          {cameraSupported && !cameraDenied && (
                             <button
                               type="button"
                               onClick={(e) => {

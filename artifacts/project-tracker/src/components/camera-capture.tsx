@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 interface CameraCaptureProps {
   onCapture: (file: File) => void;
   onClose: () => void;
+  onDenied: () => void;
 }
 
-export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
+export function CameraCapture({ onCapture, onClose, onDenied }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [ready, setReady] = useState(false);
@@ -31,8 +32,16 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
           videoRef.current.play().catch(() => {});
         }
         setReady(true);
-      } catch {
-        if (active) onClose();
+      } catch (err: unknown) {
+        if (!active) return;
+        const isDenied =
+          err instanceof DOMException &&
+          (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
+        if (isDenied) {
+          onDenied();
+        } else {
+          onClose();
+        }
       }
     }
 
@@ -43,7 +52,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
-  }, [onClose]);
+  }, [onClose, onDenied]);
 
   const capture = useCallback(() => {
     const video = videoRef.current;
