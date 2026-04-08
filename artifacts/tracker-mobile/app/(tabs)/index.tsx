@@ -19,7 +19,6 @@ import {
   useCreateTicket,
   useUpdateTicket,
   useDeleteTicket,
-  setBaseUrl,
   getListTicketsQueryKey,
 } from "@workspace/api-client-react";
 
@@ -29,8 +28,6 @@ import { FilterBar } from "@/components/FilterBar";
 import { StatsBar } from "@/components/StatsBar";
 import { TicketForm, type TicketFormData } from "@/components/TicketForm";
 import { TicketDetail } from "@/components/TicketDetail";
-
-setBaseUrl(`https://${process.env["EXPO_PUBLIC_DOMAIN"]}`);
 
 type FilterValue = "all" | TicketStatus | "low" | "medium" | "high" | "critical";
 
