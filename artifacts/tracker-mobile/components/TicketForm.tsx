@@ -1,7 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import React, { useState } from "react";
+import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system";
+import React, { useRef, useState } from "react";
 import {
   ActionSheetIOS,
   ActivityIndicator,
@@ -17,7 +19,10 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useParseTicketImage } from "@workspace/api-client-react";
+import {
+  useParseTicketImage,
+  useParseTicketVoice,
+} from "@workspace/api-client-react";
 
 import { useColors } from "@/hooks/useColors";
 import type { TicketStatus, TicketPriority } from "@/components/TicketCard";
@@ -78,12 +83,7 @@ function SelectField({ label, value, options, onSelect }: SelectFieldProps) {
           { borderColor: colors.border, backgroundColor: colors.card },
         ]}
       >
-        <Text
-          style={[
-            styles.selectText,
-            { color: value ? colors.foreground : colors.mutedForeground },
-          ]}
-        >
+        <Text style={[styles.selectText, { color: value ? colors.foreground : colors.mutedForeground }]}>
           {value || `Select ${label}`}
         </Text>
         <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
@@ -91,13 +91,9 @@ function SelectField({ label, value, options, onSelect }: SelectFieldProps) {
 
       <Modal visible={open} transparent animationType="slide">
         <Pressable style={styles.modalOverlay} onPress={() => setOpen(false)} />
-        <View
-          style={[styles.picker, { backgroundColor: colors.card, borderColor: colors.border }]}
-        >
+        <View style={[styles.picker, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.pickerTitle, { color: colors.foreground }]}>
-              {label}
-            </Text>
+            <Text style={[styles.pickerTitle, { color: colors.foreground }]}>{label}</Text>
             <Pressable onPress={() => setOpen(false)}>
               <Feather name="x" size={20} color={colors.mutedForeground} />
             </Pressable>
@@ -106,27 +102,17 @@ function SelectField({ label, value, options, onSelect }: SelectFieldProps) {
             {options.map((opt) => (
               <Pressable
                 key={opt}
-                onPress={() => {
-                  onSelect(opt);
-                  setOpen(false);
-                }}
+                onPress={() => { onSelect(opt); setOpen(false); }}
                 style={[
                   styles.pickerItem,
                   { borderBottomColor: colors.border },
                   value === opt && { backgroundColor: colors.accent },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.pickerItemText,
-                    { color: value === opt ? colors.primary : colors.foreground },
-                  ]}
-                >
+                <Text style={[styles.pickerItemText, { color: value === opt ? colors.primary : colors.foreground }]}>
                   {opt}
                 </Text>
-                {value === opt && (
-                  <Feather name="check" size={16} color={colors.primary} />
-                )}
+                {value === opt && <Feather name="check" size={16} color={colors.primary} />}
               </Pressable>
             ))}
           </ScrollView>
@@ -156,39 +142,28 @@ async function pickImage(source: "camera" | "library"): Promise<ImagePicker.Imag
       Alert.alert("Permission needed", "Camera access is required to take photos.");
       return { canceled: true, assets: null };
     }
-    return ImagePicker.launchCameraAsync({
-      mediaTypes: ["images"],
-      quality: 0.85,
-      base64: true,
-      allowsEditing: false,
-    });
+    return ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.85, base64: true });
   } else {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Photo library access is required to upload screenshots.");
+      Alert.alert("Permission needed", "Photo library access is required.");
       return { canceled: true, assets: null };
     }
-    return ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.85,
-      base64: true,
-      allowsEditing: false,
-    });
+    return ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.85, base64: true });
   }
 }
 
-export function TicketForm({
-  visible,
-  onClose,
-  onSubmit,
-  initialValues,
-  title = "New Ticket",
-}: TicketFormProps) {
+type AIStatus = "idle" | "recording" | "processing";
+
+export function TicketForm({ visible, onClose, onSubmit, initialValues, title = "New Ticket" }: TicketFormProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [saving, setSaving] = useState(false);
-  const [parsing, setParsing] = useState(false);
+  const [aiStatus, setAiStatus] = useState<AIStatus>("idle");
+  const [aiLabel, setAiLabel] = useState("");
   const [parsedBanner, setParsedBanner] = useState<string | null>(null);
+
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
   const [form, setForm] = useState<TicketFormData>({
     title: initialValues?.title ?? "",
@@ -200,74 +175,140 @@ export function TicketForm({
     priority: initialValues?.priority ?? "medium",
   });
 
-  const parseMutation = useParseTicketImage();
+  const imageMutation = useParseTicketImage();
+  const voiceMutation = useParseTicketVoice();
 
   const update = (key: keyof TicketFormData, val: string) =>
     setForm((f) => ({ ...f, [key]: val }));
 
+  const applyParsed = (parsed: {
+    title?: string | null;
+    description?: string | null;
+    submitter?: string | null;
+    state?: string | null;
+    category?: string | null;
+    confidence?: string | null;
+  }) => {
+    setForm((f) => ({
+      ...f,
+      title: parsed.title ?? f.title,
+      description: parsed.description ?? f.description,
+      submitter: parsed.submitter ?? f.submitter,
+      state: parsed.state ?? f.state,
+      category: parsed.category ?? f.category,
+    }));
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setParsedBanner(parsed.confidence ?? "Fields filled from AI");
+  };
+
+  // ── Photo / Screenshot AI ──────────────────────────────────────────────────
+
   const handleScanPhoto = () => {
     const doScan = async (source: "camera" | "library") => {
-      setParsing(true);
+      setAiStatus("processing");
+      setAiLabel("Reading photo...");
       setParsedBanner(null);
       try {
         const result = await pickImage(source);
-        if (result.canceled || !result.assets?.[0]) return;
-
-        const asset = result.assets[0];
-        const base64 = asset.base64;
-        if (!base64) {
-          Alert.alert("Error", "Could not read image data.");
-          return;
-        }
-
+        if (result.canceled || !result.assets?.[0]) { setAiStatus("idle"); return; }
+        const { base64, mimeType } = result.assets[0];
+        if (!base64) { Alert.alert("Error", "Could not read image."); setAiStatus("idle"); return; }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-        const parsed = await parseMutation.mutateAsync({
-          data: {
-            imageBase64: base64,
-            mimeType: asset.mimeType ?? "image/jpeg",
-          },
-        });
-
-        setForm((f) => ({
-          ...f,
-          title: parsed.title ?? f.title,
-          description: parsed.description ?? f.description,
-          submitter: parsed.submitter ?? f.submitter,
-          state: parsed.state ?? f.state,
-          category: parsed.category ?? f.category,
-        }));
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setParsedBanner(parsed.confidence ?? "Fields filled from photo");
+        setAiLabel("AI parsing photo...");
+        const parsed = await imageMutation.mutateAsync({ data: { imageBase64: base64, mimeType: mimeType ?? "image/jpeg" } });
+        applyParsed(parsed);
       } catch {
-        Alert.alert("AI Parse Failed", "Could not extract ticket info from that image. Try a clearer screenshot.");
+        Alert.alert("AI Parse Failed", "Could not extract ticket info. Try a clearer screenshot.");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       } finally {
-        setParsing(false);
+        setAiStatus("idle");
+        setAiLabel("");
       }
     };
 
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ["Cancel", "Take Photo", "Upload Screenshot"],
-          cancelButtonIndex: 0,
-          title: "Add Photo for AI Parsing",
-        },
-        (idx) => {
-          if (idx === 1) doScan("camera");
-          if (idx === 2) doScan("library");
-        }
+        { options: ["Cancel", "Take Photo", "Upload Screenshot"], cancelButtonIndex: 0, title: "AI Photo Parsing" },
+        (idx) => { if (idx === 1) doScan("camera"); if (idx === 2) doScan("library"); }
       );
     } else {
-      Alert.alert("Add Photo", "Choose a source for AI ticket parsing", [
+      Alert.alert("AI Photo", "Choose image source", [
         { text: "Cancel", style: "cancel" },
         { text: "Take Photo", onPress: () => doScan("camera") },
         { text: "Upload Screenshot", onPress: () => doScan("library") },
       ]);
     }
   };
+
+  // ── Voice Recording AI ─────────────────────────────────────────────────────
+
+  const startRecording = async () => {
+    try {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission needed", "Microphone access is required for voice input.");
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.startAsync();
+      recordingRef.current = recording;
+      setAiStatus("recording");
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {
+      Alert.alert("Recording Error", "Could not start recording. Please try again.");
+    }
+  };
+
+  const stopRecordingAndParse = async () => {
+    const recording = recordingRef.current;
+    if (!recording) return;
+    recordingRef.current = null;
+
+    setAiStatus("processing");
+    setAiLabel("Transcribing voice...");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    try {
+      await recording.stopAndUnloadAsync();
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+
+      const uri = recording.getURI();
+      if (!uri) { Alert.alert("Error", "No audio recorded."); setAiStatus("idle"); return; }
+
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const mimeType = Platform.OS === "ios" ? "audio/m4a" : "audio/3gp";
+
+      setAiLabel("AI creating ticket...");
+      const parsed = await voiceMutation.mutateAsync({ data: { audioBase64: base64, mimeType } });
+      applyParsed(parsed);
+    } catch {
+      Alert.alert("Voice Parse Failed", "Could not process the recording. Try again or speak more clearly.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setAiStatus("idle");
+      setAiLabel("");
+    }
+  };
+
+  const handleMicPress = () => {
+    if (aiStatus === "recording") {
+      stopRecordingAndParse();
+    } else if (aiStatus === "idle") {
+      startRecording();
+    }
+  };
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
     if (!form.title || !form.state || !form.submitter || !form.category) {
@@ -286,55 +327,114 @@ export function TicketForm({
     }
   };
 
+  const busy = aiStatus !== "idle" || saving;
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <View style={[styles.root, { backgroundColor: colors.background }]}>
+
+        {/* Header */}
         <View
           style={[
             styles.header,
-            {
-              borderBottomColor: colors.border,
-              paddingTop: Platform.OS === "web" ? 67 : insets.top + 8,
-            },
+            { borderBottomColor: colors.border, paddingTop: Platform.OS === "web" ? 67 : insets.top + 8 },
           ]}
         >
-          <Pressable onPress={onClose} hitSlop={8}>
+          <Pressable onPress={onClose} hitSlop={8} disabled={busy}>
             <Feather name="x" size={22} color={colors.mutedForeground} />
           </Pressable>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-            {title}
-          </Text>
+
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>{title}</Text>
+
           <View style={styles.headerRight}>
+            {/* Camera / Photo button */}
             <Pressable
               testID="scan-photo-btn"
               onPress={handleScanPhoto}
-              disabled={parsing || saving}
+              disabled={busy}
               hitSlop={8}
               style={[
-                styles.scanBtn,
+                styles.iconBtn,
                 { backgroundColor: colors.accent, borderColor: colors.primary + "33" },
               ]}
             >
-              {parsing ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <Feather name="camera" size={17} color={colors.primary} />
-              )}
+              <Feather name="camera" size={16} color={colors.primary} />
             </Pressable>
-            <Pressable onPress={handleSubmit} disabled={saving || parsing} hitSlop={8}>
+
+            {/* Mic button — pulses red while recording */}
+            <Pressable
+              testID="voice-btn"
+              onPress={handleMicPress}
+              disabled={aiStatus === "processing" || saving}
+              hitSlop={8}
+              style={[
+                styles.iconBtn,
+                {
+                  backgroundColor:
+                    aiStatus === "recording"
+                      ? colors.destructive + "22"
+                      : colors.accent,
+                  borderColor:
+                    aiStatus === "recording"
+                      ? colors.destructive
+                      : colors.primary + "33",
+                },
+              ]}
+            >
+              <Feather
+                name={aiStatus === "recording" ? "square" : "mic"}
+                size={16}
+                color={aiStatus === "recording" ? colors.destructive : colors.primary}
+              />
+            </Pressable>
+
+            {/* Save */}
+            <Pressable onPress={handleSubmit} disabled={busy} hitSlop={8}>
               {saving ? (
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <Text style={[styles.saveBtn, { color: colors.primary }]}>Save</Text>
+                <Text style={[styles.saveBtn, { color: busy ? colors.mutedForeground : colors.primary }]}>
+                  Save
+                </Text>
               )}
             </Pressable>
           </View>
         </View>
 
-        {parsedBanner && (
-          <View style={[styles.banner, { backgroundColor: colors.success + "1a", borderColor: colors.success + "44" }]}>
+        {/* AI status bar */}
+        {aiStatus !== "idle" && (
+          <View style={[
+            styles.aiBanner,
+            {
+              backgroundColor: aiStatus === "recording"
+                ? colors.destructive + "15"
+                : colors.primary + "15",
+              borderColor: aiStatus === "recording"
+                ? colors.destructive + "44"
+                : colors.primary + "33",
+            },
+          ]}>
+            {aiStatus === "processing" ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <View style={[styles.recDot, { backgroundColor: colors.destructive }]} />
+            )}
+            <Text style={[
+              styles.aiBannerText,
+              { color: aiStatus === "recording" ? colors.destructive : colors.primary },
+            ]}>
+              {aiStatus === "recording"
+                ? "Recording... tap the stop button when done"
+                : aiLabel || "Processing..."}
+            </Text>
+          </View>
+        )}
+
+        {/* Success banner */}
+        {parsedBanner && aiStatus === "idle" && (
+          <View style={[styles.aiBanner, { backgroundColor: colors.success + "1a", borderColor: colors.success + "44" }]}>
             <Feather name="check-circle" size={14} color={colors.success} />
-            <Text style={[styles.bannerText, { color: colors.success }]}>
+            <Text style={[styles.aiBannerText, { color: colors.success, flex: 1 }]}>
               AI filled fields · {parsedBanner}
             </Text>
             <Pressable onPress={() => setParsedBanner(null)} hitSlop={8}>
@@ -343,35 +443,16 @@ export function TicketForm({
           </View>
         )}
 
-        {parsing && (
-          <View style={[styles.parsingOverlay, { backgroundColor: colors.primary + "11" }]}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.parsingText, { color: colors.primary }]}>
-              AI is reading your photo...
-            </Text>
-          </View>
-        )}
-
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-        >
+        {/* Form */}
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <ScrollView
-            contentContainerStyle={[
-              styles.scrollContent,
-              { paddingBottom: insets.bottom + 32 },
-            ]}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 32 }]}
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-                Title *
-              </Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Title *</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground },
-                ]}
+                style={[styles.input, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 placeholder="Ticket title"
                 placeholderTextColor={colors.mutedForeground}
                 value={form.title}
@@ -380,15 +461,9 @@ export function TicketForm({
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-                Description
-              </Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Description</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  styles.textArea,
-                  { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground },
-                ]}
+                style={[styles.input, styles.textArea, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 placeholder="Describe the request..."
                 placeholderTextColor={colors.mutedForeground}
                 value={form.description}
@@ -400,14 +475,9 @@ export function TicketForm({
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-                Submitter *
-              </Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Submitter *</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground },
-                ]}
+                style={[styles.input, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                 placeholder="Full name"
                 placeholderTextColor={colors.mutedForeground}
                 value={form.submitter}
@@ -415,24 +485,11 @@ export function TicketForm({
               />
             </View>
 
-            <SelectField
-              label="State *"
-              value={form.state}
-              options={US_STATES}
-              onSelect={(v) => update("state", v)}
-            />
-
-            <SelectField
-              label="Category *"
-              value={form.category}
-              options={CATEGORIES}
-              onSelect={(v) => update("category", v)}
-            />
+            <SelectField label="State *" value={form.state} options={US_STATES} onSelect={(v) => update("state", v)} />
+            <SelectField label="Category *" value={form.category} options={CATEGORIES} onSelect={(v) => update("category", v)} />
 
             <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-                Priority
-              </Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Priority</Text>
               <View style={styles.chipRow}>
                 {PRIORITY_OPTIONS.map((opt) => (
                   <Pressable
@@ -441,22 +498,12 @@ export function TicketForm({
                     style={[
                       styles.chip,
                       {
-                        backgroundColor:
-                          form.priority === opt.value ? opt.color : colors.secondary,
-                        borderColor:
-                          form.priority === opt.value ? opt.color : colors.border,
+                        backgroundColor: form.priority === opt.value ? opt.color : colors.secondary,
+                        borderColor: form.priority === opt.value ? opt.color : colors.border,
                       },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        {
-                          color:
-                            form.priority === opt.value ? "#fff" : colors.mutedForeground,
-                        },
-                      ]}
-                    >
+                    <Text style={[styles.chipText, { color: form.priority === opt.value ? "#fff" : colors.mutedForeground }]}>
                       {opt.label}
                     </Text>
                   </Pressable>
@@ -465,9 +512,7 @@ export function TicketForm({
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-                Status
-              </Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Status</Text>
               <View style={styles.chipRow}>
                 {STATUS_OPTIONS.map((opt) => (
                   <Pressable
@@ -476,22 +521,12 @@ export function TicketForm({
                     style={[
                       styles.chip,
                       {
-                        backgroundColor:
-                          form.status === opt.value ? colors.primary : colors.secondary,
-                        borderColor:
-                          form.status === opt.value ? colors.primary : colors.border,
+                        backgroundColor: form.status === opt.value ? colors.primary : colors.secondary,
+                        borderColor: form.status === opt.value ? colors.primary : colors.border,
                       },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        {
-                          color:
-                            form.status === opt.value ? "#fff" : colors.mutedForeground,
-                        },
-                      ]}
-                    >
+                    <Text style={[styles.chipText, { color: form.status === opt.value ? "#fff" : colors.mutedForeground }]}>
                       {opt.label}
                     </Text>
                   </Pressable>
@@ -506,9 +541,7 @@ export function TicketForm({
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
+  root: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -526,9 +559,9 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
   },
-  scanBtn: {
+  iconBtn: {
     width: 32,
     height: 32,
     borderRadius: 8,
@@ -540,7 +573,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: "Inter_600SemiBold",
   },
-  banner: {
+  aiBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -548,27 +581,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
   },
-  bannerText: {
-    flex: 1,
+  aiBannerText: {
     fontSize: 13,
     fontFamily: "Inter_500Medium",
+    flex: 1,
   },
-  parsingOverlay: {
-    paddingVertical: 24,
-    alignItems: "center",
-    gap: 12,
-  },
-  parsingText: {
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
+  recDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   scrollContent: {
     padding: 20,
     gap: 16,
   },
-  fieldGroup: {
-    gap: 6,
-  },
+  fieldGroup: { gap: 6 },
   fieldLabel: {
     fontSize: 12,
     fontFamily: "Inter_500Medium",
@@ -583,10 +610,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_400Regular",
   },
-  textArea: {
-    minHeight: 88,
-    paddingTop: 12,
-  },
+  textArea: { minHeight: 88, paddingTop: 12 },
   selectButton: {
     borderWidth: 1,
     borderRadius: 10,
@@ -596,29 +620,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  selectText: {
-    fontSize: 15,
-    fontFamily: "Inter_400Regular",
-  },
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
+  selectText: { fontSize: 15, fontFamily: "Inter_400Regular" },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
   },
-  chipText: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
+  chipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
   picker: {
     position: "absolute",
     bottom: 0,
@@ -637,10 +648,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
   },
-  pickerTitle: {
-    fontSize: 17,
-    fontFamily: "Inter_600SemiBold",
-  },
+  pickerTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   pickerItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -649,8 +657,5 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  pickerItemText: {
-    fontSize: 15,
-    fontFamily: "Inter_400Regular",
-  },
+  pickerItemText: { fontSize: 15, fontFamily: "Inter_400Regular" },
 });

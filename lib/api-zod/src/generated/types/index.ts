@@ -18,6 +18,7 @@ export * from "./listTicketsParams";
 export * from "./listTicketsPriority";
 export * from "./parseImageRequest";
 export * from "./parseImageResponse";
+export * from "./parseVoiceRequest";
 export * from "./ticket";
 export * from "./ticketPriority";
 export * from "./ticketStatus";

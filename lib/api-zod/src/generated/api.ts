@@ -205,6 +205,29 @@ export const ExportTicketsQueryParams = zod.object({
 });
 
 /**
+ * @summary Transcribe voice and extract ticket fields
+ */
+export const ParseTicketVoiceBody = zod.object({
+  audioBase64: zod.string().describe("Base64-encoded audio data"),
+  mimeType: zod
+    .string()
+    .optional()
+    .describe("Audio MIME type (e.g. audio\/m4a, audio\/webm, audio\/mp4)"),
+});
+
+export const ParseTicketVoiceResponse = zod.object({
+  title: zod.string().nullable(),
+  description: zod.string().nullable(),
+  submitter: zod.string().nullable(),
+  state: zod.string().nullable(),
+  category: zod.string().nullable(),
+  confidence: zod
+    .string()
+    .nullable()
+    .describe("Brief note about extraction confidence"),
+});
+
+/**
  * @summary Parse a screenshot to extract ticket fields
  */
 export const ParseTicketImageBody = zod.object({

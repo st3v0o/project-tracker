@@ -121,6 +121,13 @@ export interface UpdateTicketRequest {
   submittedAt?: string;
 }
 
+export interface ParseVoiceRequest {
+  /** Base64-encoded audio data */
+  audioBase64: string;
+  /** Audio MIME type (e.g. audio/m4a, audio/webm, audio/mp4) */
+  mimeType?: string;
+}
+
 export interface ParseImageRequest {
   /** Base64-encoded image data (with or without data URI prefix) */
   imageBase64: string;

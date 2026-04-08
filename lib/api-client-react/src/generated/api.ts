@@ -24,6 +24,7 @@ import type {
   ListTicketsParams,
   ParseImageRequest,
   ParseImageResponse,
+  ParseVoiceRequest,
   Ticket,
   UpdateTicketRequest,
 } from "./api.schemas";
@@ -642,6 +643,92 @@ export function useExportTickets<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Transcribe voice and extract ticket fields
+ */
+export const getParseTicketVoiceUrl = () => {
+  return `/api/tickets/parse-voice`;
+};
+
+export const parseTicketVoice = async (
+  parseVoiceRequest: ParseVoiceRequest,
+  options?: RequestInit,
+): Promise<ParseImageResponse> => {
+  return customFetch<ParseImageResponse>(getParseTicketVoiceUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(parseVoiceRequest),
+  });
+};
+
+export const getParseTicketVoiceMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof parseTicketVoice>>,
+    TError,
+    { data: BodyType<ParseVoiceRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof parseTicketVoice>>,
+  TError,
+  { data: BodyType<ParseVoiceRequest> },
+  TContext
+> => {
+  const mutationKey = ["parseTicketVoice"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof parseTicketVoice>>,
+    { data: BodyType<ParseVoiceRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return parseTicketVoice(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ParseTicketVoiceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof parseTicketVoice>>
+>;
+export type ParseTicketVoiceMutationBody = BodyType<ParseVoiceRequest>;
+export type ParseTicketVoiceMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Transcribe voice and extract ticket fields
+ */
+export const useParseTicketVoice = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof parseTicketVoice>>,
+    TError,
+    { data: BodyType<ParseVoiceRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof parseTicketVoice>>,
+  TError,
+  { data: BodyType<ParseVoiceRequest> },
+  TContext
+> => {
+  return useMutation(getParseTicketVoiceMutationOptions(options));
+};
 
 /**
  * @summary Parse a screenshot to extract ticket fields

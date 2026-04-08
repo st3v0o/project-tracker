@@ -210,6 +210,31 @@ paths:
                 type: string
                 format: binary
 
+  /tickets/parse-voice:
+    post:
+      operationId: parseTicketVoice
+      tags: [ai]
+      summary: Transcribe voice and extract ticket fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParseVoiceRequest"
+      responses:
+        "200":
+          description: Extracted ticket fields from voice transcription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParseImageResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /tickets/parse-image:
     post:
       operationId: parseTicketImage
@@ -365,6 +390,18 @@ components:
         submittedAt:
           type: string
           description: ISO 8601 date-time string
+
+    ParseVoiceRequest:
+      type: object
+      properties:
+        audioBase64:
+          type: string
+          description: Base64-encoded audio data
+        mimeType:
+          type: string
+          description: Audio MIME type (e.g. audio/m4a, audio/webm, audio/mp4)
+      required:
+        - audioBase64
 
     ParseImageRequest:
       type: object
