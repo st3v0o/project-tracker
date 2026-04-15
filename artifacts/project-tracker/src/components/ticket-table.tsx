@@ -7,6 +7,7 @@ import { TicketStatusBadge } from "./ticket-status-badge";
 import { TicketPriorityBadge } from "./ticket-priority-badge";
 import { TimeSince } from "./time-since";
 import { TicketFormDialog } from "./ticket-form-dialog";
+import { TicketDetailDialog } from "./ticket-detail-dialog";
 
 import {
   Table,
@@ -34,6 +35,7 @@ interface TicketTableProps {
 export function TicketTable({ tickets, isLoading }: TicketTableProps) {
   const { updateTicket, deleteTicket } = useTicketsManager();
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
+  const [viewingTicket, setViewingTicket] = useState<Ticket | null>(null);
 
   const handleMarkComplete = async (ticket: Ticket) => {
     await updateTicket({
@@ -46,7 +48,6 @@ export function TicketTable({ tickets, isLoading }: TicketTableProps) {
   };
 
   const handleMarkPending = async (ticket: Ticket) => {
-    // Default to pending for tomorrow
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     
@@ -111,7 +112,11 @@ export function TicketTable({ tickets, isLoading }: TicketTableProps) {
             </TableHeader>
             <TableBody>
               {tickets.map((ticket) => (
-                <TableRow key={ticket.id} className="group hover:bg-muted/20 transition-colors">
+                <TableRow
+                  key={ticket.id}
+                  className="group hover:bg-muted/20 transition-colors cursor-pointer"
+                  onClick={() => setViewingTicket(ticket)}
+                >
                   <TableCell className="py-4">
                     <div className="flex flex-col">
                       <span className="font-medium text-foreground line-clamp-1" title={ticket.title}>
@@ -147,7 +152,7 @@ export function TicketTable({ tickets, isLoading }: TicketTableProps) {
                       className="text-sm font-medium text-foreground bg-background px-2 py-1 rounded-md border shadow-sm inline-block"
                     />
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -187,6 +192,12 @@ export function TicketTable({ tickets, isLoading }: TicketTableProps) {
         </div>
       </div>
 
+      <TicketDetailDialog
+        ticket={viewingTicket}
+        open={!!viewingTicket}
+        onOpenChange={(open) => !open && setViewingTicket(null)}
+      />
+
       <TicketFormDialog 
         ticket={editingTicket || undefined} 
         open={!!editingTicket} 
@@ -196,5 +207,4 @@ export function TicketTable({ tickets, isLoading }: TicketTableProps) {
   );
 }
 
-// Ensure the icon is available for empty state
 import { ListTodo } from "lucide-react";

@@ -5,7 +5,8 @@ import { useTicketsManager } from "@/hooks/use-tickets-manager";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { TicketTable } from "@/components/ticket-table";
 import { TicketFormDialog } from "@/components/ticket-form-dialog";
-import { US_STATES, CATEGORIES, STATUSES, PRIORITIES } from "@/lib/constants";
+import { StateCombobox } from "@/components/state-combobox";
+import { CATEGORIES, STATUSES, PRIORITIES } from "@/lib/constants";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -245,15 +246,7 @@ export default function Dashboard() {
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground px-1">State</label>
-                      <Select value={stateFilter} onValueChange={setStateFilter}>
-                        <SelectTrigger className="bg-background/50 rounded-xl">
-                          <SelectValue placeholder="All States" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All States</SelectItem>
-                          {US_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <StateCombobox value={stateFilter} onValueChange={setStateFilter} />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground px-1">Category</label>
