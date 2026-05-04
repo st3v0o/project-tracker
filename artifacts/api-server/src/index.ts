@@ -11,35 +11,36 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${process.env.PORT}"`);
 }
 
-// When running locally (no DATABASE_URL), push the SQLite schema to local.db
-// before accepting requests. This handles both first-run table creation and
-// schema changes made after initial setup.
+// In local SQLite mode (DATABASE_URL not set), push the schema to local.db
+// before accepting any requests. This runs drizzle-kit push which handles both
+// first-run table creation and schema changes made after the initial setup.
+// The server exits with a non-zero code if the push fails on a fresh install.
 if (IS_SQLITE) {
   const workspaceRoot = resolve(
     dirname(fileURLToPath(import.meta.url)),
-    // from dist/ → api-server/ → artifacts/ → workspace root
+    // dist/ → api-server/ → artifacts/ → workspace root
     "..",
     "..",
     ".."
   );
 
-  logger.info("SQLite mode: pushing schema to local.db...");
+  logger.info("SQLite mode: syncing schema to local.db...");
   try {
-    execSync(
-      "pnpm --filter @workspace/db db:push:local --accept-warnings",
-      {
-        cwd: workspaceRoot,
-        stdio: "pipe",
-        env: {
-          ...process.env,
-          SQLITE_PATH: process.env.SQLITE_PATH ?? "local.db",
-        },
-      }
-    );
-    logger.info("SQLite schema up to date");
+    execSync("pnpm --filter @workspace/db db:push:local", {
+      cwd: workspaceRoot,
+      stdio: "pipe",
+      env: {
+        ...process.env,
+        SQLITE_PATH: process.env.SQLITE_PATH ?? "local.db",
+      },
+    });
+    logger.info("SQLite schema is up to date");
   } catch (err) {
-    // Log but do not crash — the table was already created if this is a re-run
-    logger.warn({ err }, "drizzle-kit push failed (schema may already be current)");
+    // On first run the table must exist before the API can serve requests.
+    // On subsequent runs (schema already current) drizzle-kit exits 0, so
+    // reaching here means something is genuinely wrong.
+    logger.error({ err }, "SQLite schema push failed — cannot start server");
+    process.exit(1);
   }
 }
 

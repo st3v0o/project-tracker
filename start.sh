@@ -13,7 +13,7 @@ echo "  Project Tracker — starting locally"
 echo "  ────────────────────────────────────"
 echo ""
 
-# Check Node.js (requires 20+; better-sqlite3 only supports Node 20+)
+# Require Node.js 20+ (better-sqlite3 supports only Node 20, 22, 23, 24, 25)
 if ! command -v node &>/dev/null; then
   echo -e "${RED}Error: Node.js is not installed.${NC}"
   echo "  Download it from https://nodejs.org (version 20 or later required)"
@@ -27,21 +27,21 @@ if [ "$NODE_MAJOR" -lt 20 ]; then
   exit 1
 fi
 
-# Check pnpm — install it if missing
+# Install pnpm if missing
 if ! command -v pnpm &>/dev/null; then
   echo -e "${YELLOW}pnpm not found — installing via npm...${NC}"
   npm install -g pnpm
 fi
 
-# Copy .env if it doesn't exist
+# Create .env from template on first run
 if [ ! -f .env ]; then
   cp .env.example .env
   echo -e "${YELLOW}Created .env from .env.example${NC}"
-  echo "  → Edit .env and add your OPENAI_API_KEY to enable AI features"
+  echo "  → Add your OPENAI_API_KEY to .env to enable AI features"
   echo ""
 fi
 
-# Load .env into environment
+# Load .env into the current shell
 set -o allexport
 # shellcheck disable=SC1091
 source .env 2>/dev/null || true
@@ -56,14 +56,7 @@ echo ""
 API_PORT="${API_PORT:-8080}"
 WEB_PORT="${PORT:-3000}"
 
-# Push the SQLite schema (creates/updates the local.db table structure)
-if [ -z "${DATABASE_URL}" ]; then
-  echo "  Syncing local SQLite schema..."
-  SQLITE_PATH="${SQLITE_PATH:-local.db}" pnpm --filter @workspace/db db:push:local --accept-warnings 2>/dev/null || true
-  echo ""
-fi
-
-# Cleanup on exit
+# Cleanup handler
 cleanup() {
   echo ""
   echo "  Stopping servers..."
@@ -72,14 +65,16 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Start API server
+# Start API server (build first, then start)
 echo "  Starting API server  →  http://localhost:${API_PORT}"
-cd artifacts/api-server
-NODE_ENV=development PORT="$API_PORT" pnpm run build && NODE_ENV=development PORT="$API_PORT" pnpm run start &>/tmp/api-server.log &
+(
+  cd artifacts/api-server
+  NODE_ENV=development PORT="$API_PORT" pnpm run build \
+    && NODE_ENV=development PORT="$API_PORT" pnpm run start
+) >/tmp/api-server.log 2>&1 &
 API_PID=$!
-cd ../..
 
-# Wait for API to be ready (max 30 attempts, 1 second apart)
+# Wait for the API health endpoint (max 30 s)
 echo "  Waiting for API server..."
 for i in {1..30}; do
   if curl -sf "http://localhost:${API_PORT}/api/healthz" &>/dev/null; then
@@ -95,18 +90,16 @@ done
 
 # Start web app
 echo "  Starting web app      →  http://localhost:${WEB_PORT}"
-cd artifacts/project-tracker
-NODE_ENV=development PORT="$WEB_PORT" BASE_PATH=/ API_PORT="$API_PORT" pnpm run dev &>/tmp/web.log &
+(
+  cd artifacts/project-tracker
+  NODE_ENV=development PORT="$WEB_PORT" BASE_PATH=/ API_PORT="$API_PORT" pnpm run dev
+) >/tmp/web.log 2>&1 &
 WEB_PID=$!
-cd ../..
 
-# Open browser after a short delay
+# Open browser
 sleep 2
-if command -v open &>/dev/null; then
-  open "http://localhost:${WEB_PORT}" 2>/dev/null || true
-elif command -v xdg-open &>/dev/null; then
-  xdg-open "http://localhost:${WEB_PORT}" 2>/dev/null || true
-fi
+command -v open    &>/dev/null && open    "http://localhost:${WEB_PORT}" 2>/dev/null || true
+command -v xdg-open &>/dev/null && xdg-open "http://localhost:${WEB_PORT}" 2>/dev/null || true
 
 echo ""
 echo -e "  ${GREEN}Project Tracker is running!${NC}"
@@ -119,5 +112,4 @@ echo ""
 echo "  Press Ctrl+C to stop"
 echo ""
 
-# Wait for background processes
 wait "$API_PID" "$WEB_PID"

@@ -1,15 +1,20 @@
 import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
 import { customType } from "drizzle-orm/sqlite-core";
 
-const isoTimestamp = customType<{ data: string; driverData: string }>({
+/**
+ * SQLite-compatible timestamp column that stores ISO-8601 strings on disk
+ * but exposes JavaScript Date objects to the application layer — matching
+ * the behaviour of drizzle-orm/pg-core's `timestamp` column type.
+ */
+const isoDate = customType<{ data: Date; driverData: string }>({
   dataType() {
     return "TEXT";
   },
-  toDriver(value: string | Date): string {
+  toDriver(value: Date): string {
     return value instanceof Date ? value.toISOString() : String(value);
   },
-  fromDriver(value: string): string {
-    return value;
+  fromDriver(value: string): Date {
+    return new Date(value);
   },
 });
 
@@ -23,14 +28,14 @@ export const ticketsTableSqlite = sqliteTable("tickets", {
   status: text("status").notNull().default("todo"),
   priority: text("priority").notNull().default("medium"),
   pendingDate: text("pending_date"),
-  completedAt: isoTimestamp("completed_at"),
-  submittedAt: isoTimestamp("submitted_at")
+  completedAt: isoDate("completed_at"),
+  submittedAt: isoDate("submitted_at")
     .notNull()
-    .$defaultFn(() => new Date().toISOString()),
-  createdAt: isoTimestamp("created_at")
+    .$defaultFn(() => new Date()),
+  createdAt: isoDate("created_at")
     .notNull()
-    .$defaultFn(() => new Date().toISOString()),
-  updatedAt: isoTimestamp("updated_at")
+    .$defaultFn(() => new Date()),
+  updatedAt: isoDate("updated_at")
     .notNull()
-    .$defaultFn(() => new Date().toISOString()),
+    .$defaultFn(() => new Date()),
 });
