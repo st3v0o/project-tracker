@@ -13,16 +13,17 @@ echo "  Project Tracker — starting locally"
 echo "  ────────────────────────────────────"
 echo ""
 
-# Check Node.js
+# Check Node.js (requires 20+; better-sqlite3 only supports Node 20+)
 if ! command -v node &>/dev/null; then
   echo -e "${RED}Error: Node.js is not installed.${NC}"
-  echo "  Download it from https://nodejs.org (version 18 or later required)"
+  echo "  Download it from https://nodejs.org (version 20 or later required)"
   exit 1
 fi
 
 NODE_MAJOR=$(node -e "process.stdout.write(process.versions.node.split('.')[0])")
-if [ "$NODE_MAJOR" -lt 18 ]; then
-  echo -e "${RED}Error: Node.js 18+ is required (you have $(node --version)).${NC}"
+if [ "$NODE_MAJOR" -lt 20 ]; then
+  echo -e "${RED}Error: Node.js 20+ is required (you have $(node --version)).${NC}"
+  echo "  Download the latest LTS from https://nodejs.org"
   exit 1
 fi
 

@@ -10,10 +10,22 @@ import {
   UpdateTicketParams,
   DeleteTicketParams,
 } from "@workspace/api-zod";
-import { eq, and, or, SQL, asc, desc, sql } from "drizzle-orm";
+import { eq, and, or, type SQL, asc, desc, sql } from "drizzle-orm";
 import { format } from "date-fns";
 
 const router: IRouter = Router();
+
+// Helper: normalise a ticket row returned from either SQLite or PostgreSQL
+function normaliseTicket(t: typeof ticketsTable.$inferSelect) {
+  return {
+    ...t,
+    pendingDate: t.pendingDate ?? null,
+    completedAt: toISO(t.completedAt),
+    submittedAt: toISO(t.submittedAt)!,
+    createdAt: toISO(t.createdAt)!,
+    updatedAt: toISO(t.updatedAt)!,
+  };
+}
 
 router.get("/tickets", async (req, res) => {
   try {
@@ -32,21 +44,12 @@ router.get("/tickets", async (req, res) => {
     if (category) conditions.push(eq(ticketsTable.category, category));
     if (priority) conditions.push(eq(ticketsTable.priority, priority));
 
-    const tickets =
+    const rows =
       conditions.length > 0
         ? await db.select().from(ticketsTable).where(and(...conditions))
         : await db.select().from(ticketsTable);
 
-    const result = tickets.map((t) => ({
-      ...t,
-      pendingDate: t.pendingDate ?? null,
-      completedAt: toISO(t.completedAt as any),
-      submittedAt: toISO(t.submittedAt as any)!,
-      createdAt: toISO(t.createdAt as any)!,
-      updatedAt: toISO(t.updatedAt as any)!,
-    }));
-
-    res.json(result);
+    res.json(rows.map(normaliseTicket));
   } catch (err) {
     req.log.error({ err }, "Failed to list tickets");
     res.status(500).json({ error: "Internal server error" });
@@ -137,8 +140,9 @@ router.get("/tickets/export", async (req, res) => {
 
     const now = new Date();
     for (const t of tickets) {
-      const submittedAt = new Date(t.submittedAt as any);
+      const submittedAt = new Date(toISO(t.submittedAt) ?? now);
       const daysSince = Math.floor((now.getTime() - submittedAt.getTime()) / (1000 * 60 * 60 * 24));
+      const completedIso = toISO(t.completedAt);
 
       const rowValues: Record<string, string | number> = {
         id: t.id,
@@ -150,7 +154,7 @@ router.get("/tickets/export", async (req, res) => {
         priority: t.priority,
         description: t.description,
         submittedAt: format(submittedAt, "MM/dd/yyyy HH:mm"),
-        completedAt: t.completedAt ? format(new Date(t.completedAt as any), "MM/dd/yyyy HH:mm") : "",
+        completedAt: completedIso ? format(new Date(completedIso), "MM/dd/yyyy HH:mm") : "",
         timeSinceDays: daysSince,
       };
 
@@ -213,17 +217,10 @@ router.post("/tickets", async (req, res) => {
         status: status ?? "todo",
         priority: priority ?? "medium",
         submittedAt: submittedAt ? new Date(submittedAt) : new Date(),
-      } as any)
+      })
       .returning();
 
-    res.status(201).json({
-      ...ticket,
-      pendingDate: ticket.pendingDate ?? null,
-      completedAt: toISO(ticket.completedAt as any),
-      submittedAt: toISO(ticket.submittedAt as any)!,
-      createdAt: toISO(ticket.createdAt as any)!,
-      updatedAt: toISO(ticket.updatedAt as any)!,
-    });
+    res.status(201).json(normaliseTicket(ticket));
   } catch (err) {
     req.log.error({ err }, "Failed to create ticket");
     res.status(500).json({ error: "Internal server error" });
@@ -248,14 +245,7 @@ router.get("/tickets/:id", async (req, res) => {
       return;
     }
 
-    res.json({
-      ...ticket,
-      pendingDate: ticket.pendingDate ?? null,
-      completedAt: toISO(ticket.completedAt as any),
-      submittedAt: toISO(ticket.submittedAt as any)!,
-      createdAt: toISO(ticket.createdAt as any)!,
-      updatedAt: toISO(ticket.updatedAt as any)!,
-    });
+    res.json(normaliseTicket(ticket));
   } catch (err) {
     req.log.error({ err }, "Failed to get ticket");
     res.status(500).json({ error: "Internal server error" });
@@ -276,7 +266,7 @@ router.patch("/tickets/:id", async (req, res) => {
       return;
     }
 
-    const updateData: Record<string, unknown> = {
+    const updateData: Partial<typeof ticketsTable.$inferInsert> & { updatedAt: Date } = {
       updatedAt: new Date(),
     };
 
@@ -299,7 +289,7 @@ router.patch("/tickets/:id", async (req, res) => {
 
     const [ticket] = await db
       .update(ticketsTable)
-      .set(updateData as any)
+      .set(updateData)
       .where(eq(ticketsTable.id, paramsParsed.data.id))
       .returning();
 
@@ -308,14 +298,7 @@ router.patch("/tickets/:id", async (req, res) => {
       return;
     }
 
-    res.json({
-      ...ticket,
-      pendingDate: ticket.pendingDate ?? null,
-      completedAt: toISO(ticket.completedAt as any),
-      submittedAt: toISO(ticket.submittedAt as any)!,
-      createdAt: toISO(ticket.createdAt as any)!,
-      updatedAt: toISO(ticket.updatedAt as any)!,
-    });
+    res.json(normaliseTicket(ticket));
   } catch (err) {
     req.log.error({ err }, "Failed to update ticket");
     res.status(500).json({ error: "Internal server error" });

@@ -20,8 +20,10 @@ A full-stack ticket tracking app for managing work requests by US state, with AI
 
 | Tool | Version | Download |
 |------|---------|----------|
-| Node.js | 18 or later | https://nodejs.org |
+| Node.js | **20 or later** | https://nodejs.org |
 | pnpm | any | installed automatically by the start script |
+
+> **Why Node 20?** The local SQLite driver (`better-sqlite3`) requires Node.js 20+.
 
 ### Steps
 
@@ -48,6 +50,7 @@ chmod +x start.sh
 ```
 
 The script will:
+- Verify Node.js 20+ is installed
 - Install pnpm if needed
 - Install all dependencies
 - Create a local SQLite database (`local.db`) automatically — no setup required
@@ -86,23 +89,16 @@ Set `DATABASE_URL` in `.env` to your PostgreSQL connection string:
 DATABASE_URL=postgresql://user:password@localhost:5432/tracker
 ```
 
-The app will use PostgreSQL automatically when `DATABASE_URL` is set.
+The app switches to PostgreSQL automatically when `DATABASE_URL` is set.
 
 ---
 
 ## Importing Your Backup Data
 
-If you have a CSV backup (from the Replit-hosted app's export or the backup CSV), you can import it into your local database:
-
-```bash
-curl -X POST http://localhost:8080/api/tickets/import-csv \
-  -H "Content-Type: application/json" \
-  -d "{\"csv\": \"$(cat ticket-backup.csv | sed 's/"/\\"/g' | tr -d '\r\n' | sed 's/\\n/\\n/g')\"}"
-```
-
-Or use a simple Node.js script:
+If you have a CSV backup (from the Excel export or a prior backup), import it via a Node.js script:
 
 ```js
+// import-tickets.mjs
 import fs from 'fs';
 const csv = fs.readFileSync('ticket-backup.csv', 'utf8');
 const res = await fetch('http://localhost:8080/api/tickets/import-csv', {
@@ -112,6 +108,37 @@ const res = await fetch('http://localhost:8080/api/tickets/import-csv', {
 });
 console.log(await res.json());
 ```
+
+```bash
+node import-tickets.mjs
+```
+
+The endpoint accepts CSV with these columns (header row required):
+
+| Column | Required | Notes |
+|--------|----------|-------|
+| title | yes | |
+| submitter | yes | |
+| state | yes | Full US state name |
+| category | yes | |
+| description | no | |
+| status | no | todo / pending / complete |
+| priority | no | low / medium / high / critical |
+| submitted_at | no | ISO 8601 date |
+| completed_at | no | ISO 8601 date |
+| pending_date | no | |
+
+---
+
+## Schema Changes (Local SQLite)
+
+If a schema change is made to `lib/db/src/schema/tickets-sqlite.ts`, push it to your local database without data loss:
+
+```bash
+pnpm --filter @workspace/db db:push:local
+```
+
+This uses `drizzle-kit push` with the config at `lib/db/drizzle.config.local.ts`.
 
 ---
 
@@ -126,11 +153,14 @@ lib/
   db/                Drizzle ORM — auto-selects SQLite or PostgreSQL
   api-client-react/  Generated API hooks (TanStack Query)
   api-zod/           Request/response Zod schemas
+start.sh             macOS/Linux startup script
+start.bat            Windows startup script
+.env.example         Environment variable template
 ```
 
 ## Tech Stack
 
 - **Frontend**: React 19, Vite, TailwindCSS, shadcn/ui, TanStack Query
 - **Backend**: Express 5, Drizzle ORM
-- **Database**: SQLite (local) or PostgreSQL (Replit / production)
+- **Database**: SQLite (local, via better-sqlite3) or PostgreSQL (Replit / production)
 - **AI**: OpenAI GPT-4o-mini (text extraction) + Whisper (speech-to-text)

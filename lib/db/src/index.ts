@@ -1,4 +1,6 @@
 import * as pgSchemaModule from "./schema/index.js";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Pool as PgPool } from "pg";
 import { like, ilike } from "drizzle-orm";
 
 export const IS_SQLITE = !process.env.DATABASE_URL;
@@ -16,13 +18,14 @@ export function toISO(val: Date | string | null | undefined): string | null {
  * Case-insensitive LIKE helper.
  * PostgreSQL supports ILIKE; SQLite's LIKE is already case-insensitive for ASCII.
  */
-export function searchLike(column: any, value: string) {
+export function searchLike(column: Parameters<typeof like>[0], value: string) {
   return IS_SQLITE ? like(column, value) : ilike(column, value);
 }
 
-let _db: any;
-let _ticketsTable: any;
-let _pool: any = null;
+// `_db` will be assigned in exactly one branch below; the definite-assignment
+// assertion (!) lets TypeScript trust that without requiring `any`.
+let _db!: NodePgDatabase<typeof pgSchemaModule>;
+let _pool: PgPool | null = null;
 
 if (IS_SQLITE) {
   const Database = (await import("better-sqlite3")).default;
@@ -32,7 +35,8 @@ if (IS_SQLITE) {
   const dbPath = process.env.SQLITE_PATH ?? "local.db";
   const sqlite = new Database(dbPath);
 
-  // Auto-create the tickets table if it doesn't exist
+  // Auto-create the tickets table if it doesn't exist.
+  // Run `pnpm --filter @workspace/db db:push:local` after schema changes.
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS tickets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,8 +55,12 @@ if (IS_SQLITE) {
     )
   `);
 
-  _db = drizzle(sqlite, { schema: { ticketsTable: ticketsTableSqlite } });
-  _ticketsTable = ticketsTableSqlite;
+  // Cast to the canonical PG database type — both Drizzle adapters expose the
+  // same query-builder API (.select / .insert / .update / .delete / .returning).
+  // The only runtime difference (Date vs string for timestamps) is handled by toISO().
+  _db = drizzle(sqlite, {
+    schema: { ticketsTable: ticketsTableSqlite },
+  }) as unknown as NodePgDatabase<typeof pgSchemaModule>;
 } else {
   const pg = (await import("pg")).default;
   const { drizzle } = await import("drizzle-orm/node-postgres");
@@ -60,12 +68,12 @@ if (IS_SQLITE) {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL! });
   _pool = pool;
   _db = drizzle(pool, { schema: pgSchemaModule });
-  _ticketsTable = pgSchemaModule.ticketsTable;
 }
 
 export const db = _db;
 export const pool = _pool;
-export const ticketsTable = _ticketsTable as typeof pgSchemaModule.ticketsTable;
+/** Canonical table reference — use this everywhere for queries. */
+export const ticketsTable = pgSchemaModule.ticketsTable;
 
 export type { InsertTicket, Ticket } from "./schema/tickets.js";
 export { insertTicketSchema } from "./schema/tickets.js";

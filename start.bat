@@ -11,7 +11,16 @@ echo.
 where node >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Node.js is not installed.
-    echo         Download it from https://nodejs.org (version 18 or later required)
+    echo         Download it from https://nodejs.org (version 20 or later required)
+    pause
+    exit /b 1
+)
+
+:: Check Node.js major version (requires 20+ for better-sqlite3)
+for /f "tokens=*" %%v in ('node -e "process.stdout.write(process.versions.node.split('.')[0])"') do set NODE_MAJOR=%%v
+if %NODE_MAJOR% LSS 20 (
+    echo [ERROR] Node.js 20 or later is required.
+    echo         You have Node.js %NODE_MAJOR%.x. Download the latest LTS from https://nodejs.org
     pause
     exit /b 1
 )

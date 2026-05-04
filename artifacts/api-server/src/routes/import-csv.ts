@@ -42,11 +42,12 @@ router.post("/tickets/import-csv", async (req, res) => {
       return;
     }
 
-    const headers = parseCSVLine(lines[0]).map((h) => h.trim().toLowerCase().replace(/\s+/g, "_"));
-
+    const headers = parseCSVLine(lines[0]).map((h) =>
+      h.trim().toLowerCase().replace(/\s+/g, "_")
+    );
     const idx = (name: string) => headers.indexOf(name);
 
-    const rows = [];
+    const rows: (typeof ticketsTable.$inferInsert)[] = [];
     const errors: string[] = [];
 
     for (let i = 1; i < lines.length; i++) {
@@ -65,26 +66,19 @@ router.post("/tickets/import-csv", async (req, res) => {
 
       const rawSubmittedAt = get("submitted_at") || get("submittedat");
       const rawCompletedAt = get("completed_at") || get("completedat");
-
-      const submittedAt = rawSubmittedAt ? new Date(rawSubmittedAt) : new Date();
-      const completedAt = rawCompletedAt ? new Date(rawCompletedAt) : null;
-
-      const status = get("status") || "todo";
-      const priority = get("priority") || "medium";
-      const description = get("description") || "";
-      const pendingDate = get("pending_date") || get("pendingdate") || null;
+      const rawPendingDate = get("pending_date") || get("pendingdate");
 
       rows.push({
         title,
         submitter,
         state,
         category,
-        description,
-        status,
-        priority,
-        submittedAt,
-        completedAt: completedAt as any,
-        pendingDate: pendingDate as any,
+        description: get("description") || "",
+        status: get("status") || "todo",
+        priority: get("priority") || "medium",
+        submittedAt: rawSubmittedAt ? new Date(rawSubmittedAt) : new Date(),
+        completedAt: rawCompletedAt ? new Date(rawCompletedAt) : null,
+        pendingDate: rawPendingDate || null,
       });
     }
 
@@ -93,7 +87,7 @@ router.post("/tickets/import-csv", async (req, res) => {
       return;
     }
 
-    const inserted = await db.insert(ticketsTable).values(rows as any).returning();
+    const inserted = await db.insert(ticketsTable).values(rows).returning();
 
     res.status(201).json({
       imported: inserted.length,
