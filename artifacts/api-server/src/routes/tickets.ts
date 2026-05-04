@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import ExcelJS from "exceljs";
-import { db, ticketsTable } from "@workspace/db";
+import { db, ticketsTable, toISO, searchLike } from "@workspace/db";
 import {
   ListTicketsQueryParams,
   ExportTicketsQueryParams,
@@ -10,7 +10,7 @@ import {
   UpdateTicketParams,
   DeleteTicketParams,
 } from "@workspace/api-zod";
-import { eq, and, or, ilike, SQL, asc, desc, sql } from "drizzle-orm";
+import { eq, and, or, SQL, asc, desc, sql } from "drizzle-orm";
 import { format } from "date-fns";
 
 const router: IRouter = Router();
@@ -40,10 +40,10 @@ router.get("/tickets", async (req, res) => {
     const result = tickets.map((t) => ({
       ...t,
       pendingDate: t.pendingDate ?? null,
-      completedAt: t.completedAt ? t.completedAt.toISOString() : null,
-      submittedAt: t.submittedAt.toISOString(),
-      createdAt: t.createdAt.toISOString(),
-      updatedAt: t.updatedAt.toISOString(),
+      completedAt: toISO(t.completedAt as any),
+      submittedAt: toISO(t.submittedAt as any)!,
+      createdAt: toISO(t.createdAt as any)!,
+      updatedAt: toISO(t.updatedAt as any)!,
     }));
 
     res.json(result);
@@ -73,13 +73,12 @@ router.get("/tickets/export", async (req, res) => {
     if (search) {
       conditions.push(
         or(
-          ilike(ticketsTable.title, `%${search}%`),
-          ilike(ticketsTable.submitter, `%${search}%`)
+          searchLike(ticketsTable.title, `%${search}%`),
+          searchLike(ticketsTable.submitter, `%${search}%`)
         ) as SQL
       );
     }
 
-    // Match dashboard sort order exactly (values must match SORT_OPTIONS in dashboard.tsx)
     const orderExpr = (() => {
       switch (sortBy) {
         case "oldest":        return asc(ticketsTable.submittedAt);
@@ -89,13 +88,10 @@ router.get("/tickets/export", async (req, res) => {
         case "state_asc":     return asc(ticketsTable.state);
         case "category_asc":  return asc(ticketsTable.category);
         case "status":
-          // todo → pending → complete
           return sql`CASE status WHEN 'todo' THEN 0 WHEN 'pending' THEN 1 WHEN 'complete' THEN 2 ELSE 3 END ASC`;
         case "priority_high":
-          // critical → high → medium → low
           return sql`CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END ASC`;
         case "priority_low":
-          // low → medium → high → critical
           return sql`CASE priority WHEN 'low' THEN 0 WHEN 'medium' THEN 1 WHEN 'high' THEN 2 WHEN 'critical' THEN 3 ELSE 4 END ASC`;
         case "newest":
         default:              return desc(ticketsTable.submittedAt);
@@ -115,7 +111,6 @@ router.get("/tickets/export", async (req, res) => {
 
     const sheet = workbook.addWorksheet("Tickets");
 
-    // Define columns — keys must match row object properties
     const COLS: { header: string; key: string; minWidth: number }[] = [
       { header: "ID", key: "id", minWidth: 6 },
       { header: "Title", key: "title", minWidth: 20 },
@@ -132,19 +127,17 @@ router.get("/tickets/export", async (req, res) => {
 
     sheet.columns = COLS.map((c) => ({ header: c.header, key: c.key, width: c.minWidth }));
 
-    // Style header row
     const headerRow = sheet.getRow(1);
     headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
     headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F46E5" } };
     headerRow.alignment = { vertical: "middle", horizontal: "center" };
     headerRow.height = 22;
 
-    // Track max cell length per column for auto-sizing
     const colWidths: number[] = COLS.map((c) => c.header.length);
 
     const now = new Date();
     for (const t of tickets) {
-      const submittedAt = new Date(t.submittedAt);
+      const submittedAt = new Date(t.submittedAt as any);
       const daysSince = Math.floor((now.getTime() - submittedAt.getTime()) / (1000 * 60 * 60 * 24));
 
       const rowValues: Record<string, string | number> = {
@@ -157,13 +150,12 @@ router.get("/tickets/export", async (req, res) => {
         priority: t.priority,
         description: t.description,
         submittedAt: format(submittedAt, "MM/dd/yyyy HH:mm"),
-        completedAt: t.completedAt ? format(new Date(t.completedAt), "MM/dd/yyyy HH:mm") : "",
+        completedAt: t.completedAt ? format(new Date(t.completedAt as any), "MM/dd/yyyy HH:mm") : "",
         timeSinceDays: daysSince,
       };
 
       sheet.addRow(rowValues);
 
-      // Update max column widths (cap description at 60)
       COLS.forEach((col, i) => {
         const val = String(rowValues[col.key] ?? "");
         const len = col.key === "description" ? Math.min(val.length, 60) : val.length;
@@ -171,12 +163,10 @@ router.get("/tickets/export", async (req, res) => {
       });
     }
 
-    // Apply computed widths + add a small padding
     sheet.columns.forEach((col, i) => {
       col.width = Math.max(colWidths[i] + 2, COLS[i].minWidth);
     });
 
-    // Zebra stripe rows
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;
       if (rowNumber % 2 === 0) {
@@ -185,7 +175,6 @@ router.get("/tickets/export", async (req, res) => {
       row.alignment = { vertical: "middle", wrapText: false };
     });
 
-    // Freeze header row + enable auto-filter
     sheet.views = [{ state: "frozen", ySplit: 1 }];
     sheet.autoFilter = { from: "A1", to: { row: 1, column: COLS.length } };
 
@@ -224,16 +213,16 @@ router.post("/tickets", async (req, res) => {
         status: status ?? "todo",
         priority: priority ?? "medium",
         submittedAt: submittedAt ? new Date(submittedAt) : new Date(),
-      })
+      } as any)
       .returning();
 
     res.status(201).json({
       ...ticket,
       pendingDate: ticket.pendingDate ?? null,
-      completedAt: ticket.completedAt ? ticket.completedAt.toISOString() : null,
-      submittedAt: ticket.submittedAt.toISOString(),
-      createdAt: ticket.createdAt.toISOString(),
-      updatedAt: ticket.updatedAt.toISOString(),
+      completedAt: toISO(ticket.completedAt as any),
+      submittedAt: toISO(ticket.submittedAt as any)!,
+      createdAt: toISO(ticket.createdAt as any)!,
+      updatedAt: toISO(ticket.updatedAt as any)!,
     });
   } catch (err) {
     req.log.error({ err }, "Failed to create ticket");
@@ -262,10 +251,10 @@ router.get("/tickets/:id", async (req, res) => {
     res.json({
       ...ticket,
       pendingDate: ticket.pendingDate ?? null,
-      completedAt: ticket.completedAt ? ticket.completedAt.toISOString() : null,
-      submittedAt: ticket.submittedAt.toISOString(),
-      createdAt: ticket.createdAt.toISOString(),
-      updatedAt: ticket.updatedAt.toISOString(),
+      completedAt: toISO(ticket.completedAt as any),
+      submittedAt: toISO(ticket.submittedAt as any)!,
+      createdAt: toISO(ticket.createdAt as any)!,
+      updatedAt: toISO(ticket.updatedAt as any)!,
     });
   } catch (err) {
     req.log.error({ err }, "Failed to get ticket");
@@ -292,16 +281,8 @@ router.patch("/tickets/:id", async (req, res) => {
     };
 
     const {
-      title,
-      description,
-      state,
-      submitter,
-      category,
-      status,
-      priority,
-      pendingDate,
-      completedAt,
-      submittedAt,
+      title, description, state, submitter, category, status, priority,
+      pendingDate, completedAt, submittedAt,
     } = bodyParsed.data;
 
     if (title !== undefined) updateData.title = title;
@@ -318,7 +299,7 @@ router.patch("/tickets/:id", async (req, res) => {
 
     const [ticket] = await db
       .update(ticketsTable)
-      .set(updateData)
+      .set(updateData as any)
       .where(eq(ticketsTable.id, paramsParsed.data.id))
       .returning();
 
@@ -330,10 +311,10 @@ router.patch("/tickets/:id", async (req, res) => {
     res.json({
       ...ticket,
       pendingDate: ticket.pendingDate ?? null,
-      completedAt: ticket.completedAt ? ticket.completedAt.toISOString() : null,
-      submittedAt: ticket.submittedAt.toISOString(),
-      createdAt: ticket.createdAt.toISOString(),
-      updatedAt: ticket.updatedAt.toISOString(),
+      completedAt: toISO(ticket.completedAt as any),
+      submittedAt: toISO(ticket.submittedAt as any)!,
+      createdAt: toISO(ticket.createdAt as any)!,
+      updatedAt: toISO(ticket.updatedAt as any)!,
     });
   } catch (err) {
     req.log.error({ err }, "Failed to update ticket");
