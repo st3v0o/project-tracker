@@ -47,3 +47,10 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Local SQLite database (generated on first run — do not commit)
+local.db
+local.db-shm
+local.db-wal
+*.db-shm
+*.db-wal
