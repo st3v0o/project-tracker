@@ -45,7 +45,7 @@ if not exist ".env" (
     echo.
 )
 
-:: Load .env
+:: Load .env (skip comment lines starting with #)
 for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
     set "line=%%A"
     if not "!line:~0,1!"=="#" (
@@ -66,17 +66,37 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-echo   Starting API server  --^>  http://localhost:%API_PORT%
-start "API Server" cmd /c "cd artifacts\api-server && set PORT=%API_PORT%&& set NODE_ENV=development && pnpm dev > %TEMP%\api-server.log 2>&1"
+:: Push the SQLite schema (creates/updates local.db table structure)
+if "%DATABASE_URL%"=="" (
+    echo   Syncing local SQLite schema...
+    call pnpm --filter @workspace/db db:push:local --accept-warnings >nul 2>&1
+    echo.
+)
 
+:: Start API server in a new window.
+:: We call "pnpm run build" then "pnpm run start" directly so we avoid the
+:: POSIX-only "export" in the "dev" script.
+echo   Starting API server  --^>  http://localhost:%API_PORT%
+start "API Server" cmd /c "cd artifacts\api-server && set NODE_ENV=development&& set PORT=%API_PORT%&& pnpm run build && pnpm run start 2>&1 | tee %TEMP%\api-server.log"
+
+:: Wait for API to be ready (max 30 attempts, 2 seconds each)
 echo   Waiting for API server...
+set /a ATTEMPTS=0
 :wait_api
+set /a ATTEMPTS+=1
+if %ATTEMPTS% GTR 30 (
+    echo [ERROR] API server did not start within 60 seconds.
+    echo         Check the log: %TEMP%\api-server.log
+    pause
+    exit /b 1
+)
 timeout /t 2 /nobreak >nul
-curl -sf "http://localhost:%API_PORT%/api/health" >nul 2>&1
+curl -sf "http://localhost:%API_PORT%/api/healthz" >nul 2>&1
 if %errorlevel% neq 0 goto wait_api
 
+:: Start web app
 echo   Starting web app      --^>  http://localhost:%PORT%
-start "Web App" cmd /c "cd artifacts\project-tracker && set PORT=%PORT%&& set BASE_PATH=/&& set API_PORT=%API_PORT%&& set NODE_ENV=development && pnpm dev > %TEMP%\web.log 2>&1"
+start "Web App" cmd /c "cd artifacts\project-tracker && set NODE_ENV=development&& set PORT=%PORT%&& set BASE_PATH=/&& set API_PORT=%API_PORT%&& pnpm run dev 2>&1 | tee %TEMP%\web.log"
 
 timeout /t 3 /nobreak >nul
 start "" "http://localhost:%PORT%"
@@ -89,6 +109,7 @@ echo.
 echo   API logs:  %TEMP%\api-server.log
 echo   Web logs:  %TEMP%\web.log
 echo.
-echo   Close this window or press Ctrl+C to stop all servers.
+echo   Close the API Server and Web App windows to stop all servers.
+echo   Press any key to dismiss this window.
 echo.
 pause

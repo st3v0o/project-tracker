@@ -56,6 +56,13 @@ echo ""
 API_PORT="${API_PORT:-8080}"
 WEB_PORT="${PORT:-3000}"
 
+# Push the SQLite schema (creates/updates the local.db table structure)
+if [ -z "${DATABASE_URL}" ]; then
+  echo "  Syncing local SQLite schema..."
+  SQLITE_PATH="${SQLITE_PATH:-local.db}" pnpm --filter @workspace/db db:push:local --accept-warnings 2>/dev/null || true
+  echo ""
+fi
+
 # Cleanup on exit
 cleanup() {
   echo ""
@@ -68,15 +75,20 @@ trap cleanup EXIT INT TERM
 # Start API server
 echo "  Starting API server  →  http://localhost:${API_PORT}"
 cd artifacts/api-server
-PORT="$API_PORT" NODE_ENV=development pnpm dev &>/tmp/api-server.log &
+NODE_ENV=development PORT="$API_PORT" pnpm run build && NODE_ENV=development PORT="$API_PORT" pnpm run start &>/tmp/api-server.log &
 API_PID=$!
 cd ../..
 
-# Wait for API to be ready
+# Wait for API to be ready (max 30 attempts, 1 second apart)
 echo "  Waiting for API server..."
 for i in {1..30}; do
-  if curl -sf "http://localhost:${API_PORT}/api/health" &>/dev/null; then
+  if curl -sf "http://localhost:${API_PORT}/api/healthz" &>/dev/null; then
     break
+  fi
+  if [ "$i" -eq 30 ]; then
+    echo -e "${RED}Error: API server did not start within 30 seconds.${NC}"
+    echo "  Check the log: /tmp/api-server.log"
+    exit 1
   fi
   sleep 1
 done
@@ -84,7 +96,7 @@ done
 # Start web app
 echo "  Starting web app      →  http://localhost:${WEB_PORT}"
 cd artifacts/project-tracker
-PORT="$WEB_PORT" BASE_PATH=/ API_PORT="$API_PORT" NODE_ENV=development pnpm dev &>/tmp/web.log &
+NODE_ENV=development PORT="$WEB_PORT" BASE_PATH=/ API_PORT="$API_PORT" pnpm run dev &>/tmp/web.log &
 WEB_PID=$!
 cd ../..
 
