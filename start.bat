@@ -60,11 +60,17 @@ set API_LOG=%TEMP%\api-server.log
 set WEB_LOG=%TEMP%\web.log
 
 echo   Installing dependencies...
-call pnpm install
+call pnpm install --ignore-scripts
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to install dependencies.
     pause
     exit /b 1
+)
+:: Run lifecycle scripts for native modules (better-sqlite3 needs its install script)
+call pnpm rebuild better-sqlite3
+if %errorlevel% neq 0 (
+    echo [WARN] better-sqlite3 rebuild failed - SQLite mode may not work.
+    echo        Make sure you have Visual Studio Build Tools installed.
 )
 echo.
 
