@@ -22,8 +22,7 @@ export function searchLike(column: Parameters<typeof like>[0], value: string) {
   return IS_SQLITE ? like(column, value) : ilike(column, value);
 }
 
-// `_db` will be assigned in exactly one branch below; the definite-assignment
-// assertion (!) lets TypeScript trust that without requiring `any`.
+// `_db` is definitely assigned in exactly one branch below.
 let _db!: NodePgDatabase<typeof pgSchemaModule>;
 let _pool: PgPool | null = null;
 
@@ -35,29 +34,9 @@ if (IS_SQLITE) {
   const dbPath = process.env.SQLITE_PATH ?? "local.db";
   const sqlite = new Database(dbPath);
 
-  // Auto-create the tickets table if it doesn't exist.
-  // Run `pnpm --filter @workspace/db db:push:local` after schema changes.
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS tickets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      description TEXT NOT NULL DEFAULT '',
-      state TEXT NOT NULL,
-      submitter TEXT NOT NULL,
-      category TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'todo',
-      priority TEXT NOT NULL DEFAULT 'medium',
-      pending_date TEXT,
-      completed_at TEXT,
-      submitted_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
-      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
-      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
-    )
-  `);
-
   // Cast to the canonical PG database type — both Drizzle adapters expose the
   // same query-builder API (.select / .insert / .update / .delete / .returning).
-  // The only runtime difference (Date vs string for timestamps) is handled by toISO().
+  // Schema provisioning is handled at API server startup via drizzle-kit push.
   _db = drizzle(sqlite, {
     schema: { ticketsTable: ticketsTableSqlite },
   }) as unknown as NodePgDatabase<typeof pgSchemaModule>;
