@@ -2,13 +2,16 @@ import * as pgSchemaModule from "./schema/index.js";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Pool as PgPool } from "pg";
 import { like, ilike } from "drizzle-orm";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const IS_SQLITE = !process.env.DATABASE_URL;
 
 /**
  * Normalise any timestamp value to an ISO string.
- * PostgreSQL driver returns Date objects; SQLite isoDate custom type also
- * returns Date objects, so this is a safety fallback for both modes.
+ * Both the PG and SQLite adapters return Date objects for timestamp columns
+ * (SQLite uses the isoDate custom type which maps TEXT → Date). This helper
+ * provides a safe fallback for either case.
  */
 export function toISO(val: Date | string | null | undefined): string | null {
   if (val == null) return null;
@@ -25,23 +28,23 @@ export function searchLike(column: Parameters<typeof like>[0], value: string) {
 
 // ── Database initialisation ─────────────────────────────────────────────────
 //
-// In SQLite mode (no DATABASE_URL), the application uses better-sqlite3 with
-// drizzle-orm/better-sqlite3 and ticketsTableSqlite (defined in sqlite-core).
+// In SQLite mode (no DATABASE_URL), the application uses better-sqlite3 +
+// drizzle-orm/better-sqlite3 + ticketsTableSqlite (sqlite-core schema).
 //
-// In PostgreSQL mode (DATABASE_URL set), it uses the node-postgres driver with
-// drizzle-orm/node-postgres and the canonical ticketsTable (defined in pg-core).
+// In PostgreSQL mode (DATABASE_URL set), it uses node-postgres +
+// drizzle-orm/node-postgres + ticketsTable (pg-core schema).
 //
-// Both database objects expose the same drizzle query-builder API
+// Both db objects expose the same drizzle query-builder API
 // (.select / .insert / .update / .delete / .returning). The exported `db` is
-// typed as NodePgDatabase because that is the canonical interface consumed by
-// the routes; the runtime instance is dialect-correct in both modes.
+// typed as NodePgDatabase because that is the canonical interface used by the
+// routes. The runtime instance is dialect-correct in both modes.
 //
 // The `as unknown as` cast below is unavoidable: drizzle-orm does not expose a
-// shared base interface for its SQLite and PG database classes, so a cross-
-// dialect cast requires the double-hop through `unknown`. The dialect mismatch
-// is prevented at runtime by exporting `ticketsTable` as the SQLite table
-// object (ticketsTableSqlite) in SQLite mode, ensuring the correct column-type
-// mappers are used for every query.
+// shared base interface for BetterSQLite3Database and NodePgDatabase, so a
+// cross-dialect cast must go through `unknown`. Dialect correctness is
+// preserved at runtime by exporting `ticketsTable` as ticketsTableSqlite in
+// SQLite mode — the SQLite column-type mappers (isoDate: TEXT ↔ Date) are
+// used for every query, not the PG ones.
 
 let _db!: NodePgDatabase<typeof pgSchemaModule>;
 let _ticketsTable!: typeof pgSchemaModule.ticketsTable;
@@ -52,17 +55,26 @@ if (IS_SQLITE) {
   const { drizzle } = await import("drizzle-orm/better-sqlite3");
   const { ticketsTableSqlite } = await import("./schema/tickets-sqlite.js");
 
-  const dbPath = process.env.SQLITE_PATH ?? "local.db";
+  // Resolve absolute path so the db file is the same regardless of cwd.
+  const workspaceRoot = resolve(
+    fileURLToPath(import.meta.url),
+    "..", // src/
+    "..", // lib/db/
+    "..", // lib/
+    ".."  // workspace root
+  );
+  const dbPath = process.env.SQLITE_PATH
+    ? resolve(process.env.SQLITE_PATH)
+    : resolve(workspaceRoot, "local.db");
+
   const sqlite = new Database(dbPath);
 
   _db = drizzle(sqlite, {
     schema: { ticketsTable: ticketsTableSqlite },
   }) as unknown as NodePgDatabase<typeof pgSchemaModule>;
 
-  // At runtime in SQLite mode we use ticketsTableSqlite so that drizzle uses
-  // the correct SQLite column-type mappers (e.g. isoDate → Date).  The cast to
-  // the PG table type is safe because both tables have identical SQL columns
-  // and both expose `Date | null` for timestamp fields.
+  // Export the SQLite table object so drizzle uses the correct SQLite column
+  // type mappers (isoDate) for all queries — no dialect mixing.
   _ticketsTable = ticketsTableSqlite as unknown as typeof pgSchemaModule.ticketsTable;
 } else {
   const pg = (await import("pg")).default;

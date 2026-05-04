@@ -14,8 +14,10 @@ if (Number.isNaN(port) || port <= 0) {
 // In local SQLite mode (DATABASE_URL not set), push the schema to local.db
 // before accepting any requests. This runs drizzle-kit push which handles both
 // first-run table creation and schema changes made after the initial setup.
-// The server exits with a non-zero code if the push fails on a fresh install.
+// The server exits with a non-zero code if the push fails.
 if (IS_SQLITE) {
+  // Compute absolute paths so drizzle-kit and the runtime db always use the
+  // same file, regardless of the working directory this process was launched from.
   const workspaceRoot = resolve(
     dirname(fileURLToPath(import.meta.url)),
     // dist/ → api-server/ → artifacts/ → workspace root
@@ -23,22 +25,22 @@ if (IS_SQLITE) {
     "..",
     ".."
   );
+  const sqlitePath = process.env.SQLITE_PATH
+    ? resolve(process.env.SQLITE_PATH)
+    : resolve(workspaceRoot, "local.db");
 
-  logger.info("SQLite mode: syncing schema to local.db...");
+  logger.info({ sqlitePath }, "SQLite mode: syncing schema...");
   try {
     execSync("pnpm --filter @workspace/db db:push:local", {
       cwd: workspaceRoot,
       stdio: "pipe",
       env: {
         ...process.env,
-        SQLITE_PATH: process.env.SQLITE_PATH ?? "local.db",
+        SQLITE_PATH: sqlitePath,
       },
     });
     logger.info("SQLite schema is up to date");
   } catch (err) {
-    // On first run the table must exist before the API can serve requests.
-    // On subsequent runs (schema already current) drizzle-kit exits 0, so
-    // reaching here means something is genuinely wrong.
     logger.error({ err }, "SQLite schema push failed — cannot start server");
     process.exit(1);
   }
