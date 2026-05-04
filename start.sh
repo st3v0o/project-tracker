@@ -96,8 +96,21 @@ echo "  Starting web app      →  http://localhost:${WEB_PORT}"
 ) >/tmp/web.log 2>&1 &
 WEB_PID=$!
 
-# Open browser
-sleep 2
+# Wait for Vite to be ready before opening browser (max 120 s)
+echo "  Waiting for web app..."
+for i in {1..40}; do
+  if curl -sf "http://localhost:${WEB_PORT}" &>/dev/null; then
+    break
+  fi
+  if [ "$i" -eq 40 ]; then
+    echo -e "${RED}Error: Web app did not start within 120 seconds.${NC}"
+    echo "  Check the log: /tmp/web.log"
+    exit 1
+  fi
+  sleep 3
+done
+
+# Open browser once Vite is ready
 command -v open    &>/dev/null && open    "http://localhost:${WEB_PORT}" 2>/dev/null || true
 command -v xdg-open &>/dev/null && xdg-open "http://localhost:${WEB_PORT}" 2>/dev/null || true
 

@@ -99,7 +99,22 @@ if %errorlevel% neq 0 goto wait_api
 echo   Starting web app      --^>  http://localhost:%PORT%
 start "Web App" cmd /c "cd artifacts\project-tracker && set NODE_ENV=development&& set PORT=%PORT%&& set BASE_PATH=/&& set API_PORT=%API_PORT%&& pnpm run dev 1>%WEB_LOG% 2>&1"
 
+:: Poll localhost:PORT until Vite is ready (max 40 attempts x 3 s = 120 s)
+:: Vite needs time for dep pre-bundling on first run — do not open browser early.
+echo   Waiting for web app...
+set /a WEB_ATTEMPTS=0
+:wait_web
+set /a WEB_ATTEMPTS+=1
+if %WEB_ATTEMPTS% GTR 40 (
+    echo [ERROR] Web app did not respond within 120 seconds.
+    echo         Check the log: %WEB_LOG%
+    pause
+    exit /b 1
+)
 timeout /t 3 /nobreak >nul
+curl -sf "http://localhost:%PORT%" >nul 2>&1
+if %errorlevel% neq 0 goto wait_web
+
 start "" "http://localhost:%PORT%"
 
 echo.
