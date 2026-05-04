@@ -107,7 +107,9 @@ set /a WEB_ATTEMPTS=0
 set /a WEB_ATTEMPTS+=1
 if %WEB_ATTEMPTS% GTR 40 (
     echo [ERROR] Web app did not respond within 120 seconds.
-    echo         Check the log: %WEB_LOG%
+    echo         Last lines of web log:
+    echo         ----------------------
+    more %WEB_LOG%
     pause
     exit /b 1
 )
