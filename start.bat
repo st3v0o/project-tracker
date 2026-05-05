@@ -74,11 +74,6 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-:: Seed the local database with existing tickets on first run
-echo   Seeding local database...
-node seeds/seed-local.mjs
-echo.
-
 :: Start the API server in its own window.
 :: Call "pnpm run build" then "pnpm run start" directly — avoids the POSIX-only
 :: "export" keyword used in the "dev" npm script.
@@ -99,6 +94,11 @@ if %ATTEMPTS% GTR 30 (
 timeout /t 2 /nobreak >nul
 curl -sf "http://localhost:%API_PORT%/api/healthz" >nul 2>&1
 if %errorlevel% neq 0 goto wait_api
+
+:: API is up and schema exists — seed tickets on first run (no-op if rows exist)
+echo   Seeding local database...
+node seeds/seed-local.mjs
+echo.
 
 :: Start the web app in its own window
 echo   Starting web app      --^>  http://localhost:%PORT%
