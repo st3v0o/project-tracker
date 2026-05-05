@@ -65,6 +65,11 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# Seed the local database with existing tickets on first run (no-op if rows exist)
+echo "  Seeding local database..."
+node seeds/seed-local.mjs
+echo ""
+
 # Start API server (build first, then start)
 echo "  Starting API server  →  http://localhost:${API_PORT}"
 (

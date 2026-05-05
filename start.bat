@@ -74,6 +74,11 @@ if %errorlevel% neq 0 (
 )
 echo.
 
+:: Seed the local database with existing tickets on first run
+echo   Seeding local database...
+node seeds/seed-local.mjs
+echo.
+
 :: Start the API server in its own window.
 :: Call "pnpm run build" then "pnpm run start" directly — avoids the POSIX-only
 :: "export" keyword used in the "dev" npm script.
