@@ -2,68 +2,93 @@
 /**
  * seed-local.mjs
  *
- * Loads seeds/tickets.json into the local SQLite database.
- * Safe to run multiple times — skips insert if tickets already exist.
+ * Loads seeds/tickets.json into the running local API server via
+ * POST /api/tickets/import-csv.  No native modules required — uses
+ * built-in fetch (Node 18+) and the same import endpoint the UI uses.
+ *
+ * Safe to run multiple times: skips if any tickets already exist.
  *
  * Usage:
  *   node seeds/seed-local.mjs
- *
- * Or via npm script (added automatically by start.sh / start.bat on first run).
  */
 
+import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readFileSync } from "node:fs";
-import Database from "better-sqlite3";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const workspaceRoot = resolve(__dirname, "..");
+const tickets = JSON.parse(
+  readFileSync(resolve(__dirname, "tickets.json"), "utf8")
+);
 
-const dbPath = process.env.SQLITE_PATH
-  ? resolve(process.env.SQLITE_PATH)
-  : resolve(workspaceRoot, "local.db");
+const API_PORT = process.env.API_PORT ?? "8080";
+const BASE = `http://localhost:${API_PORT}`;
 
-const ticketsJson = resolve(__dirname, "tickets.json");
-const tickets = JSON.parse(readFileSync(ticketsJson, "utf8"));
-
-const db = new Database(dbPath);
-
-// Check if any rows already exist — avoid double-seeding
-const { count } = db.prepare("SELECT COUNT(*) as count FROM tickets").get();
-if (count > 0) {
-  console.log(`  Seed skipped: ${count} ticket(s) already in local.db`);
-  db.close();
+// Check if any tickets already exist
+let existing = 0;
+try {
+  const r = await fetch(`${BASE}/api/tickets`);
+  if (r.ok) {
+    const data = await r.json();
+    existing = Array.isArray(data) ? data.length : 0;
+  }
+} catch {
+  console.log("  Seed skipped: API not reachable");
   process.exit(0);
 }
 
-const insert = db.prepare(`
-  INSERT INTO tickets (
-    id, title, description, state, submitter, category, status,
-    pending_date, completed_at, submitted_at, priority
-  ) VALUES (
-    @id, @title, @description, @state, @submitter, @category, @status,
-    @pending_date, @completed_at, @submitted_at, @priority
-  )
-`);
+if (existing > 0) {
+  console.log(`  Seed skipped: ${existing} ticket(s) already exist`);
+  process.exit(0);
+}
 
-const insertMany = db.transaction((rows) => {
-  for (const row of rows) {
-    insert.run({
-      id:           row.id,
-      title:        row.title,
-      description:  row.description ?? null,
-      state:        row.state,
-      submitter:    row.submitter ?? null,
-      category:     row.category ?? null,
-      status:       row.status ?? "todo",
-      pending_date: row.pending_date ?? null,
-      completed_at: row.completed_at ?? null,
-      submitted_at: row.submitted_at ?? null,
-      priority:     row.priority ?? "medium",
-    });
+// Build CSV from the JSON seed data
+const HEADERS = [
+  "title", "description", "state", "submitter", "category",
+  "status", "priority", "submitted_at", "completed_at",
+];
+
+function csvEscape(val) {
+  if (val == null) return "";
+  const s = String(val);
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+    return `"${s.replace(/"/g, '""')}"`;
   }
+  return s;
+}
+
+const rows = [HEADERS.join(",")];
+for (const t of tickets) {
+  rows.push([
+    t.title,
+    t.description ?? "",
+    t.state,
+    t.submitter ?? "",
+    t.category ?? "",
+    t.status ?? "todo",
+    t.priority ?? "medium",
+    t.submitted_at ?? "",
+    t.completed_at ?? "",
+  ].map(csvEscape).join(","));
+}
+
+const csv = rows.join("\n");
+
+// POST to the bulk import endpoint
+const res = await fetch(`${BASE}/api/tickets/import-csv`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ csv }),
 });
 
-insertMany(tickets);
-console.log(`  Seeded ${tickets.length} ticket(s) into ${dbPath}`);
-db.close();
+if (!res.ok) {
+  const body = await res.text();
+  console.error(`  [ERROR] Seed failed (HTTP ${res.status}): ${body}`);
+  process.exit(1);
+}
+
+const result = await res.json();
+console.log(`  Seeded ${result.imported} ticket(s) into local database`);
+if (result.errors?.length) {
+  console.warn(`  Warnings: ${result.errors.join("; ")}`);
+}
