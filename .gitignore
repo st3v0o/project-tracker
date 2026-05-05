@@ -54,3 +54,10 @@ local.db-shm
 local.db-wal
 *.db-shm
 *.db-wal
+
+# Environment file (contains secrets — copy from .env.example)
+.env
+
+# Dev server log files
+*.out.log
+*.err.log
