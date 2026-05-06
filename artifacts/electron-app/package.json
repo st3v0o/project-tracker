@@ -1,0 +1,21 @@
+{
+  "name": "@workspace/electron-app",
+  "version": "1.0.0",
+  "description": "Project Tracker – Windows desktop app",
+  "author": "DSP",
+  "private": true,
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "dist": "node build.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "@types/node": "^25.3.3"
+  }
+}

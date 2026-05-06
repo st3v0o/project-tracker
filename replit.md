@@ -1,96 +1,67 @@
-# Project Tracker Workspace
+# Project Tracker
 
-## Overview
+Full-stack ticket/work-request tracker by US state. Web app (React + Vite) + Express API + SQLite (local) or PostgreSQL (Replit). Includes a Windows Electron desktop installer with auto-update from GitHub Releases.
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+## Run & Operate
+
+| Command | What it does |
+|---|---|
+| `start.bat` | Windows dev mode — installs, starts API + web, seeds DB, opens browser |
+| `start.sh` | macOS/Linux dev mode |
+| `pnpm --filter @workspace/electron-app run dist` | Build Windows installer (run on Windows; needs Node + pnpm) |
+| `pnpm --filter @workspace/api-server run dev` | API server only |
+| `pnpm --filter @workspace/project-tracker run dev` | Web frontend only |
+
+Key env vars: `DATABASE_URL` (PostgreSQL; omit for SQLite), `API_PORT` (default 8080), `PORT` (web, default 3000), `OPENAI_API_KEY` (optional AI features), `SQLITE_PATH` (override SQLite file location), `STATIC_DIR` (set by Electron; Express serves React SPA from this dir), `ELECTRON_PACKAGED=1` (set by Electron; skips drizzle-kit CLI for schema bootstrap).
 
 ## Stack
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Runtime**: Node 24, pnpm 10 (monorepo: `artifacts/*`, `lib/*`, `scripts`)
+- **API**: Express 5, esbuild bundle, pino logger
+- **DB**: Drizzle ORM — PostgreSQL (prod) / better-sqlite3 (local/Electron)
+- **Frontend**: React 19, Vite 7, Tailwind 4, TanStack Query, wouter
+- **Mobile**: Expo (React Native) — `artifacts/tracker-mobile`
+- **Desktop**: Electron 33 + electron-builder (NSIS installer) + electron-updater (GitHub Releases)
+- **Validation**: Zod, drizzle-zod, OpenAPI codegen (Orval)
 
-## Structure
+## Where things live
 
-```text
-artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
-│   ├── api-spec/           # OpenAPI spec + Orval codegen config
-│   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
-```
+- API routes: `artifacts/api-server/src/routes/`
+- DB schema (PG): `lib/db/src/schema/tickets.ts`
+- DB schema (SQLite): `lib/db/src/schema/tickets-sqlite.ts`
+- DB connection (dual-mode): `lib/db/src/index.ts`
+- React pages: `artifacts/project-tracker/src/`
+- Electron main process: `artifacts/electron-app/main.mjs`
+- Electron build config: `artifacts/electron-app/electron-builder.yml`
+- Seed data: `seeds/tickets.json` (26 tickets), `seeds/seed-local.mjs`
 
-## TypeScript & Composite Projects
+## Architecture decisions
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
+- **Dual DB mode**: `IS_SQLITE = !DATABASE_URL` in `lib/db/src/index.ts`; same Drizzle API for both dialects
+- **Electron in-process API**: Express runs inside the Electron main process (dynamic `import()`) — no child processes, no CMD windows
+- **Static serving**: `STATIC_DIR` env var tells Express to serve the built React SPA; SPA fallback (`*` → `index.html`) supports wouter client-side routing
+- **Packaged schema bootstrap**: `ELECTRON_PACKAGED=1` makes `index.ts` use `CREATE TABLE IF NOT EXISTS` via better-sqlite3 directly, bypassing the drizzle-kit CLI which isn't available in the installed app
+- **Auto-update**: `electron-updater` checks `github.com/st3v0o/project-tracker` Releases on every launch; tag a release as `v<version>` to deliver an update
+- **Native rebuild**: electron-builder downloads prebuilt `better-sqlite3` binaries for Electron's Node ABI (no MSVC needed on the user's machine)
 
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+## Product
 
-## Root Scripts
+- Ticket board with state (US), category, status, priority, submitter
+- Dashboard with charts by state and category
+- CSV import/export (Excel-compatible)
+- AI image/voice parsing for quick ticket creation
+- Works offline with SQLite; syncs to PostgreSQL in the cloud
 
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+## User preferences
 
-## Packages
+- Windows developer (`C:\Users\StevenMack\Dev\project-tracker`), Node v24, pnpm v10
+- App pushed to `github.com/st3v0o/project-tracker` (origin/main)
+- Prefers no CLI windows in the desktop app; auto-update from GitHub Releases
 
-### `artifacts/api-server` (`@workspace/api-server`)
+## Gotchas
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
-
-- Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
-
-### `lib/db` (`@workspace/db`)
-
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
-
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
-
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
-
-### `lib/api-spec` (`@workspace/api-spec`)
-
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
-
-### `scripts` (`@workspace/scripts`)
-
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+- Building the Windows installer (`--win`) on Linux requires Wine (electron-builder limitation); run `dist` on Windows
+- `better-sqlite3` must be rebuilt for Electron's ABI — electron-builder handles this automatically via `@electron/rebuild` prebuilts
+- `electron` must be in `pnpm-workspace.yaml` `onlyBuiltDependencies` so pnpm downloads the Electron binary on install
+- The `api/` and `dist/` directories inside `artifacts/electron-app/` are generated — gitignored, do not commit
+- To publish an update: bump `version` in `artifacts/electron-app/package.json`, build installer on Windows, create a GitHub Release tagged `v<version>`, attach the `Setup.exe`

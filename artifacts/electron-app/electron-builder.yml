@@ -1,0 +1,62 @@
+# electron-builder configuration for Project Tracker (Windows)
+#
+# Build command (run from workspace root):
+#   pnpm --filter @workspace/electron-app run dist
+#
+# The build.mjs script must run first — it copies the built API bundle into
+# artifacts/electron-app/api/ before electron-builder is invoked.
+
+appId: com.dsp.projecttracker
+productName: Project Tracker
+copyright: Copyright © 2025
+
+# electron-builder reads version from package.json
+# Tag a GitHub Release as v<version> to trigger auto-update delivery.
+
+directories:
+  output: dist
+  buildResources: build
+
+# Files packed into app.asar (the Electron app bundle)
+files:
+  - main.mjs
+  - package.json
+  - api/**/*          # API server bundle (copied by build.mjs from api-server/dist/)
+
+# Files copied into resources/ alongside app.asar (NOT inside the asar)
+extraResources:
+  - from: ../project-tracker/dist/public
+    to: public
+  - from: ../../seeds/tickets.json
+    to: seeds/tickets.json
+
+# Unpack native .node addons from the asar so Node can load them
+asarUnpack:
+  - "**/*.node"
+
+# Rebuild native modules (better-sqlite3) for Electron's Node ABI
+npmRebuild: true
+
+# Windows target: NSIS installer (.exe)
+win:
+  target:
+    - target: nsis
+      arch: x64
+  # Place your 256x256 ICO at build/icon.ico to replace the default icon.
+  # icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Project Tracker
+  uninstallDisplayName: Project Tracker
+
+# Auto-update: publish to GitHub Releases
+# Tag a release as v<version> (e.g. v1.0.1) to trigger delivery.
+publish:
+  - provider: github
+    owner: st3v0o
+    repo: project-tracker
+    releaseType: release
