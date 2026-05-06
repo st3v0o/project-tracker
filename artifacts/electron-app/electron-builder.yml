@@ -22,6 +22,7 @@ files:
   - main.mjs
   - package.json
   - api/**/*          # API server bundle (copied by build.mjs from api-server/dist/)
+  - build/**/*        # build resources (icon.ico etc.) — bundled so main.mjs can load them
 
 # Files copied into resources/ alongside app.asar (NOT inside the asar)
 extraResources:
