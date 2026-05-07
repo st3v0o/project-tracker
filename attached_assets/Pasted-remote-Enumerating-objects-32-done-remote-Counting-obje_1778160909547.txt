@@ -1,0 +1,48 @@
+remote: Enumerating objects: 32, done.
+remote: Counting objects: 100% (32/32), done.
+remote: Compressing objects: 100% (15/15), done.
+remote: Total 23 (delta 8), reused 23 (delta 8), pack-reused 0 (from 0)
+Unpacking objects: 100% (23/23), 34.88 KiB | 290.00 KiB/s, done.
+From https://github.com/st3v0o/project-tracker
+   0fe7447..ca5e1f9  main       -> origin/main
+Updating 0fe7447..ca5e1f9
+Fast-forward
+ artifacts/api-server/src/app.ts             |   18 +
+ artifacts/api-server/src/index.ts           |   74 +-
+ artifacts/electron-app/.gitignore           |    4 +
+ artifacts/electron-app/build.mjs            |   59 +
+ artifacts/electron-app/electron-builder.yml |   63 +
+ artifacts/electron-app/main.mjs             |  251 ++++
+ artifacts/electron-app/package.json         |   21 +
+ pnpm-lock.yaml                              | 1766 ++++++++++++++++++++++++++-
+ pnpm-workspace.yaml                         |    1 +
+ replit.md                                   |  151 +--
+ 10 files changed, 2275 insertions(+), 133 deletions(-)
+ create mode 100644 artifacts/electron-app/.gitignore
+ create mode 100644 artifacts/electron-app/build.mjs
+ create mode 100644 artifacts/electron-app/electron-builder.yml
+ create mode 100644 artifacts/electron-app/main.mjs
+ create mode 100644 artifacts/electron-app/package.json
+PS C:\Users\StevenMack\Dev\project-tracker> pnpm install
+Scope: all 12 workspace projects
+Lockfile is up to date, resolution step is skipped
+Packages: +183 -8
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-----
+
+   ╭─────────────────────────────────────────╮
+   │                                         │
+   │   Update available! 10.32.1 → 11.0.8.   │
+   │   Changelog: https://pnpm.io/v/11.0.8   │
+   │    To update, run: pnpm add -g pnpm     │
+   │                                         │
+   ╰─────────────────────────────────────────╯
+
+Downloading 7zip-bin@5.2.0: 5.63 MB/5.63 MB, done
+Downloading app-builder-bin@5.0.0-alpha.10: 72.51 MB/72.51 MB, done
+Progress: resolved 183, reused 23, downloaded 160, added 182, done
+node_modules/.pnpm/electron@33.4.11/node_modules/electron: Running postinstall script, done in 4.4s
+. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm…
+│ 'sh' is not recognized as an internal or external command,
+│ operable program or batch file.
+└─ Failed in 40ms at C:\Users\StevenMack\Dev\project-tracker
+ ELIFECYCLE  Command failed with exit code 1.

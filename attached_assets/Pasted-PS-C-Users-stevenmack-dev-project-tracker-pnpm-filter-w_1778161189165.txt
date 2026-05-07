@@ -1,0 +1,230 @@
+PS C:\Users\stevenmack\dev\project-tracker> pnpm --filter @workspace/electron-app run dist
+
+> @workspace/electron-app@1.0.0 dist C:\Users\StevenMack\Dev\project-tracker\artifacts\electron-app
+> node build.mjs
+
+=== Project Tracker — Electron dist build ===
+
+
+> pnpm --filter @workspace/project-tracker run build
+
+> @workspace/project-tracker@0.0.0 build C:\Users\StevenMack\Dev\project-tracker\artifacts\project-tracker
+> vite build --config vite.config.ts
+
+vite v7.3.1 building client environment for production...
+src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/select.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/command.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/dropdown-menu.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/calendar.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/label.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+✓ 3506 modules transformed.
+dist/public/index.html                   0.75 kB │ gzip:   0.42 kB
+dist/public/assets/index-CK_PQjuE.css  104.27 kB │ gzip:  17.01 kB
+dist/public/assets/index-D16NaTdx.js   764.51 kB │ gzip: 237.98 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 7.59s
+
+> pnpm --filter @workspace/api-server run build
+
+> @workspace/api-server@0.0.0 build C:\Users\StevenMack\Dev\project-tracker\artifacts\api-server
+> node ./build.mjs
+
+
+  dist\index.mjs                                 3.9mb
+  dist\chunks\chunk-5HX52SDV.mjs               169.9kb
+  dist\chunks\chunk-GFLJI3M5.mjs               117.7kb
+  dist\chunks\node-postgres-YTACWNYK.mjs       117.5kb
+  dist\chunks\better-sqlite3-LGOGENAQ.mjs       89.1kb
+  dist\pino-pretty.mjs                          84.5kb
+  dist\chunks\chunk-VTO4OVFB.mjs                43.6kb
+  dist\chunks\chunk-YLCT2WS3.mjs                39.2kb
+  dist\chunks\chunk-RIS63LTX.mjs                21.9kb
+  dist\chunks\chunk-IDTWL74T.mjs                19.8kb
+  dist\chunks\chunk-DEO2QJJZ.mjs                17.9kb
+  dist\pino-worker.mjs                           9.1kb
+  dist\chunks\chunk-VQ2LLV7T.mjs                 5.9kb
+  dist\thread-stream-worker.mjs                  4.2kb
+  dist\chunks\chunk-ATFS5275.mjs                 3.5kb
+  dist\chunks\chunk-OUD2LORY.mjs                 2.6kb
+  dist\chunks\chunk-5AX5I6WE.mjs                 2.4kb
+  dist\chunks\tickets-sqlite-PT5JRISB.mjs        1.6kb
+  dist\pino-file.mjs                             1.2kb
+  dist\chunks\chunk-JWNFTTI6.mjs                 1.0kb
+  dist\chunks\esm-ALXG6ME2.mjs                   812b
+  dist\index.mjs.map                             7.9mb
+  dist\chunks\chunk-5HX52SDV.mjs.map           275.1kb
+  dist\chunks\node-postgres-YTACWNYK.mjs.map   257.6kb
+  dist\chunks\better-sqlite3-LGOGENAQ.mjs.map  214.7kb
+  dist\chunks\chunk-GFLJI3M5.mjs.map           189.9kb
+  dist\chunks\chunk-VTO4OVFB.mjs.map           156.5kb
+  dist\pino-pretty.mjs.map                     154.2kb
+  dist\chunks\chunk-YLCT2WS3.mjs.map           110.9kb
+  dist\chunks\chunk-DEO2QJJZ.mjs.map            62.5kb
+  dist\chunks\chunk-IDTWL74T.mjs.map            49.6kb
+  dist\chunks\chunk-RIS63LTX.mjs.map            35.6kb
+  dist\pino-worker.mjs.map                      22.1kb
+  dist\chunks\chunk-VQ2LLV7T.mjs.map             8.5kb
+  dist\thread-stream-worker.mjs.map              8.2kb
+  dist\chunks\chunk-ATFS5275.mjs.map             5.9kb
+  dist\chunks\chunk-OUD2LORY.mjs.map             3.2kb
+  dist\chunks\tickets-sqlite-PT5JRISB.mjs.map    2.5kb
+  dist\pino-file.mjs.map                         833b
+  dist\chunks\chunk-JWNFTTI6.mjs.map             795b
+  dist\chunks\chunk-5AX5I6WE.mjs.map              93b
+  dist\chunks\esm-ALXG6ME2.mjs.map                93b
+
+Done in 868ms
+
+> Copying API bundle: C:\Users\StevenMack\Dev\project-tracker\artifacts\api-server\dist → C:\Users\StevenMack\Dev\project-tracker\artifacts\electron-app\api
+
+> pnpm exec electron-builder build --win
+  • electron-builder  version=25.1.8 os=10.0.26200
+  • loaded configuration  file=C:\Users\StevenMack\Dev\project-tracker\artifacts\electron-app\electron-builder.yml
+  • writing effective config  file=dist\builder-effective-config.yaml
+  • executing @electron/rebuild  electronVersion=33.4.11 arch=x64 buildFromSource=false appDir=./
+  • installing native dependencies  arch=x64
+  • completed installing native dependencies
+  • packaging       platform=win32 arch=x64 electron=33.4.11 appOutDir=dist\win-unpacked
+  • updating asar integrity executable resource  executablePath=dist\win-unpacked\Project Tracker.exe
+  • default Electron icon is used  reason=application icon is not set
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=313ms
+  • signing with signtool.exe  path=dist\win-unpacked\Project Tracker.exe
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • building        target=nsis file=dist\Project Tracker Setup 1.0.0.exe archs=x64 oneClick=false perMachine=false
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/nsis-3.0.4.1/nsis-3.0.4.1.7z size=1.3 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/nsis-3.0.4.1/nsis-3.0.4.1.7z duration=404ms
+  • signing with signtool.exe  path=dist\win-unpacked\resources\elevate.exe
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/nsis-resources-3.4.1/nsis-resources-3.4.1.7z size=731 kB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/nsis-resources-3.4.1/nsis-resources-3.4.1.7z duration=224ms
+  • cannot move downloaded into final location (another process downloaded faster?)  path=C:\Users\StevenMack\AppData\Local\electron-builder\Cache\nsis\nsis-resources-3.4.1
+                                                                                     tempFile=C:\Users\StevenMack\AppData\Local\electron-builder\Cache\nsis\458346679
+                                                                                     error=rename C:\Users\StevenMack\AppData\Local\electron-builder\Cache\nsis\458346679 C:\Users\StevenMack\AppData\Local\electron-builder\Cache\nsis\nsis-resources-3.4.1: Access is denied.
+  ⨯ C:\Users\StevenMack\AppData\Local\electron-builder\Cache\nsis\nsis-3.0.4.1\Bin\makensis.exe process failed ERR_ELECTRON_BUILDER_CANNOT_EXECUTE
+Exit code:
+1
+Output:
+Command line defined: "APP_ID=com.dsp.projecttracker"
+Command line defined: "APP_GUID=ad55a0ea-d9ae-56c0-9475-0757ed152d68"
+Command line defined: "UNINSTALL_APP_KEY=ad55a0ea-d9ae-56c0-9475-0757ed152d68"
+Command line defined: "PRODUCT_NAME=Project Tracker"
+Command line defined: "PRODUCT_FILENAME=Project Tracker"
+Command line defined: "APP_FILENAME=Project Tracker"
+Command line defined: "APP_DESCRIPTION=Project Tracker � Windows desktop app"
+Command line defined: "VERSION=1.0.0"
+Command line defined: "PROJECT_DIR=C:\Users\StevenMack\Dev\project-tracker\artifacts\electron-app"
+Command line defined: "BUILD_RESOURCES_DIR=C:\Users\StevenMack\Dev\project-tracker\artifacts\electron-app\build"
+Command line defined: "APP_PACKAGE_NAME=@workspace\electron-app"
+Command line defined: "APP_64=C:\Users\StevenMack\Dev\project-tracker\artifacts\electron-app\dist\@workspaceelectron-app-1.0.0-x64.nsis.7z"
+Command line defined: "APP_64_NAME=@workspaceelectron-app-1.0.0-x64.nsis.7z"
+Command line defined: "APP_64_HASH=61757754940012D5F13E2334BD0F716769AB83927BC0C635F69537B76C2EFD45BCFDE0BB6D0F848E4DC7573CED1490A113F535DA3E45C0F4130ED962C3354EE3"
+Command line defined: "APP_64_UNPACKED_SIZE=303766"
+Command line defined: "COMPANY_NAME=DSP"
+Command line defined: "APP_INSTALLER_STORE_FILE=@workspaceelectron-app-updater\installer.exe"
+Command line defined: "COMPRESSION_METHOD=7z"
+Command line defined: "MULTIUSER_INSTALLMODE_ALLOW_ELEVATION"
+Command line defined: "INSTALL_MODE_PER_ALL_USERS_REQUIRED"
+Command line defined: "allowToChangeInstallationDirectory"
+Command line defined: "SHORTCUT_NAME=Project Tracker"
+Command line defined: "UNINSTALL_DISPLAY_NAME=Project Tracker"
+Command line defined: "MUI_WELCOMEFINISHPAGE_BITMAP=${NSISDIR}\Contrib\Graphics\Wizard\nsis3-metro.bmp"
+Command line defined: "MUI_UNWELCOMEFINISHPAGE_BITMAP=${NSISDIR}\Contrib\Graphics\Wizard\nsis3-metro.bmp"
+Command line defined: "ESTIMATED_SIZE=303765"
+Command line defined: "COMPRESS=auto"
+Command line defined: "BUILD_UNINSTALLER"
+Command line defined: "UNINSTALLER_OUT_FILE=C:\Users\StevenMack\Dev\project-tracker\artifacts\electron-app\dist\__uninstaller-nsis-@workspaceelectron-app.exe"
+Processing config: C:\Users\StevenMack\AppData\Local\electron-builder\Cache\nsis\nsis-3.0.4.1\nsisconf.nsh
+Processing script file: "<stdin>" (UTF8)
+Plugin directories:
+  C:\Users\StevenMack\AppData\Local\electron-builder\Cache\nsis\nsis-3.0.4.1\Plugins\x86-unicode
+
+Error output:
+Plugin not found, cannot call UAC::_
+Error in macro _UAC_MakeLL_Cmp on macroline 2
+Error in macro _UAC_IsInnerInstance on macroline 1
+Error in macro _If on macroline 9
+Error in macro FUNCTION_INSTALL_MODE_PAGE_FUNCTION on macroline 2
+Error in macro PAGE_INSTALL_MODE on macroline 17
+!include: error in script: "assistedInstaller.nsh" on line 75
+Error in script "<stdin>" on line 110 -- aborting creation process
+  failedTask=build stackTrace=Error: C:\Users\StevenMack\AppData\Local\electron-builder\Cache\nsis\nsis-3.0.4.1\Bin\makensis.exe process failed ERR_ELECTRON_BUILDER_CANNOT_EXECUTE
+Exit code:
+1
+Output:
+Command line defined: "APP_ID=com.dsp.projecttracker"
+Command line defined: "APP_GUID=ad55a0ea-d9ae-56c0-9475-0757ed152d68"
+Command line defined: "UNINSTALL_APP_KEY=ad55a0ea-d9ae-56c0-9475-0757ed152d68"
+Command line defined: "PRODUCT_NAME=Project Tracker"
+Command line defined: "PRODUCT_FILENAME=Project Tracker"
+Command line defined: "APP_FILENAME=Project Tracker"
+Command line defined: "APP_DESCRIPTION=Project Tracker � Windows desktop app"
+Command line defined: "VERSION=1.0.0"
+Command line defined: "PROJECT_DIR=C:\Users\StevenMack\Dev\project-tracker\artifacts\electron-app"
+Command line defined: "BUILD_RESOURCES_DIR=C:\Users\StevenMack\Dev\project-tracker\artifacts\electron-app\build"
+Command line defined: "APP_PACKAGE_NAME=@workspace\electron-app"
+Command line defined: "APP_64=C:\Users\StevenMack\Dev\project-tracker\artifacts\electron-app\dist\@workspaceelectron-app-1.0.0-x64.nsis.7z"
+Command line defined: "APP_64_NAME=@workspaceelectron-app-1.0.0-x64.nsis.7z"
+Command line defined: "APP_64_HASH=61757754940012D5F13E2334BD0F716769AB83927BC0C635F69537B76C2EFD45BCFDE0BB6D0F848E4DC7573CED1490A113F535DA3E45C0F4130ED962C3354EE3"
+Command line defined: "APP_64_UNPACKED_SIZE=303766"
+Command line defined: "COMPANY_NAME=DSP"
+Command line defined: "APP_INSTALLER_STORE_FILE=@workspaceelectron-app-updater\installer.exe"
+Command line defined: "COMPRESSION_METHOD=7z"
+Command line defined: "MULTIUSER_INSTALLMODE_ALLOW_ELEVATION"
+Command line defined: "INSTALL_MODE_PER_ALL_USERS_REQUIRED"
+Command line defined: "allowToChangeInstallationDirectory"
+Command line defined: "SHORTCUT_NAME=Project Tracker"
+Command line defined: "UNINSTALL_DISPLAY_NAME=Project Tracker"
+Command line defined: "MUI_WELCOMEFINISHPAGE_BITMAP=${NSISDIR}\Contrib\Graphics\Wizard\nsis3-metro.bmp"
+Command line defined: "MUI_UNWELCOMEFINISHPAGE_BITMAP=${NSISDIR}\Contrib\Graphics\Wizard\nsis3-metro.bmp"
+Command line defined: "ESTIMATED_SIZE=303765"
+Command line defined: "COMPRESS=auto"
+Command line defined: "BUILD_UNINSTALLER"
+Command line defined: "UNINSTALLER_OUT_FILE=C:\Users\StevenMack\Dev\project-tracker\artifacts\electron-app\dist\__uninstaller-nsis-@workspaceelectron-app.exe"
+Processing config: C:\Users\StevenMack\AppData\Local\electron-builder\Cache\nsis\nsis-3.0.4.1\nsisconf.nsh
+Processing script file: "<stdin>" (UTF8)
+Plugin directories:
+  C:\Users\StevenMack\AppData\Local\electron-builder\Cache\nsis\nsis-3.0.4.1\Plugins\x86-unicode
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                Error output:
+Plugin not found, cannot call UAC::_
+Error in macro _UAC_MakeLL_Cmp on macroline 2
+Error in macro _UAC_IsInnerInstance on macroline 1
+Error in macro _If on macroline 9
+Error in macro FUNCTION_INSTALL_MODE_PAGE_FUNCTION on macroline 2
+Error in macro PAGE_INSTALL_MODE on macroline 17
+!include: error in script: "assistedInstaller.nsh" on line 75
+Error in script "<stdin>" on line 110 -- aborting creation process
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    at ChildProcess.<anonymous> (C:\Users\StevenMack\Dev\project-tracker\node_modules\.pnpm\builder-util@25.1.7\node_modules\builder-util\src\util.ts:255:14)
+    at Object.onceWrapper (node:events:623:26)
+    at ChildProcess.emit (node:events:508:28)
+    at ChildProcess.cp.emit (C:\Users\StevenMack\Dev\project-tracker\node_modules\.pnpm\cross-spawn@7.0.6\node_modules\cross-spawn\lib\enoent.js:34:29)
+    at maybeClose (node:internal/child_process:1100:16)
+    at Process.ChildProcess._handle.onexit (node:internal/child_process:305:5)
+node:internal/errors:985
+  const err = new Error(message);
+              ^
+
+Error: Command failed: pnpm exec electron-builder build --win
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at checkExecSyncError (node:child_process:925:11)
+    at execSync (node:child_process:997:15)
+    at run (file:///C:/Users/StevenMack/Dev/project-tracker/artifacts/electron-app/build.mjs:28:3)
+    at file:///C:/Users/StevenMack/Dev/project-tracker/artifacts/electron-app/build.mjs:54:1 {
+  status: 1,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 37836,
+  stdout: null,
+  stderr: null
+}
+
+Node.js v24.14.0
+C:\Users\StevenMack\Dev\project-tracker\artifacts\electron-app:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/electron-app@1.0.0 dist: `node build.mjs`
+Exit status 1
